@@ -1,0 +1,7 @@
+{
+  "name": "PerfumesControl",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}
