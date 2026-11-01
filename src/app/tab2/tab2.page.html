@@ -1,16 +1,8 @@
-
 <ion-header [translucent]="true">
   <ion-toolbar>
     <ion-title>Clientes</ion-title>
   </ion-toolbar>
 </ion-header>
-<p class="error" *ngIf="errorCarga">
-  {{ errorCarga }}
-</p>
-
-<p *ngIf="cargando">
-  Cargando clientes...
-</p>
 
 <ion-content [fullscreen]="true">
   <div class="contenedor">
@@ -21,9 +13,18 @@
       <p>Administra tus compradores y sus cuentas.</p>
     </div>
 
+    <p class="error" *ngIf="errorCarga">
+      {{ errorCarga }}
+    </p>
+
+    <p *ngIf="cargando">
+      Cargando clientes...
+    </p>
+
     <button
       class="btn-principal"
       *ngIf="!mostrarFormulario"
+      [disabled]="cargando || !!errorCarga"
       (click)="abrirFormulario()">
       + Nuevo cliente
     </button>
@@ -59,14 +60,12 @@
         {{ error }}
       </p>
 
-      
-<button
-  type="submit"
-  class="btn-principal"
-  [disabled]="!nombre.trim() || guardando || cargando || !!errorCarga">
-  Guardar cliente
-</button>
-
+      <button
+        type="submit"
+        class="btn-principal"
+        [disabled]="!nombre.trim() || guardando || cargando || !!errorCarga">
+        Guardar cliente
+      </button>
 
       <button
         type="button"
@@ -77,7 +76,7 @@
     </form>
 
     <!-- BUSCADOR -->
-    <div class="buscador">
+    <div class="buscador" *ngIf="!errorCarga">
       <input
         type="search"
         placeholder="Buscar cliente..."
@@ -85,7 +84,7 @@
         [(ngModel)]="busqueda" />
     </div>
 
-    <div class="lista-header">
+    <div class="lista-header" *ngIf="!errorCarga">
       <h2>Clientes registrados</h2>
       <span>{{ clientes.length }}</span>
     </div>
@@ -99,7 +98,7 @@
     <!-- SIN RESULTADOS -->
     <div
       class="vacio"
-      *ngIf="clientes.length > 0 &&
+      *ngIf="!cargando && clientes.length > 0 &&
              clientesFiltrados.length === 0">
       <p>No encontramos clientes con ese nombre.</p>
     </div>
@@ -120,7 +119,10 @@
           {{ cliente.telefono }}
         </p>
 
-        <span>Cuenta sin movimientos</span>
+        <span [class.saldo-pendiente]="saldoDe(cliente.id) > 0"
+              [class.cuenta-liquidada]="saldoDe(cliente.id) <= 0">
+          {{ textoSaldo(cliente.id) }}
+        </span>
       </div>
 
     </div>

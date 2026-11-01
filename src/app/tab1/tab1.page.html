@@ -1,4 +1,3 @@
-
 <ion-header [translucent]="true">
   <ion-toolbar>
     <ion-title>PerfumesControl</ion-title>
@@ -14,32 +13,51 @@
       <p>Control de ventas, cobros e inventario</p>
     </div>
 
-    <div class="tarjetas">
-      <div class="tarjeta">
-        <span>Ventas registradas</span>
-        <strong>$0.00</strong>
+    <p *ngIf="cargando">Cargando indicadores...</p>
+    <p class="error" *ngIf="error">{{ error }}</p>
+
+    <ng-container *ngIf="!cargando && !error && resumen as r">
+      <div class="tarjetas">
+        <div class="tarjeta">
+          <span>Ventas de hoy</span>
+          <strong>{{ formatoMXN(r.ventas_hoy_centavos) }}</strong>
+        </div>
+
+        <div class="tarjeta">
+          <span>Cobros de hoy</span>
+          <strong>{{ formatoMXN(r.cobros_hoy_centavos) }}</strong>
+        </div>
+
+        <div class="tarjeta">
+          <span>Saldo total por cobrar</span>
+          <strong>{{ formatoMXN(r.saldo_por_cobrar_centavos) }}</strong>
+        </div>
+
+        <div class="tarjeta">
+          <span>Inventario actual</span>
+          <strong>{{ textoInventario(r.inventario_unidades) }}</strong>
+        </div>
       </div>
 
-      <div class="tarjeta">
-        <span>Dinero cobrado</span>
-        <strong>$0.00</strong>
+      <div class="seccion">
+        <h2>Resumen de rentabilidad</h2>
+        <p>
+          Ganancia bruta de ventas (acumulada):
+          {{ formatoMXN(r.ganancia_bruta_ventas_centavos) }}
+        </p>
+        <p>
+          Ganancia potencial del inventario:
+          {{ formatoMXN(r.ganancia_potencial_inventario_centavos) }}
+        </p>
+        <p class="nota">
+          Las tarjetas superiores usan el día {{ r.fecha }}.
+          La ganancia bruta acumula todas las ventas con costos FIFO.
+        </p>
       </div>
+    </ng-container>
 
-      <div class="tarjeta">
-        <span>Saldo por cobrar</span>
-        <strong>$0.00</strong>
-      </div>
-
-      <div class="tarjeta">
-        <span>Inventario</span>
-        <strong>0 perfumes</strong>
-      </div>
-    </div>
-
-    <div class="seccion">
-      <h2>Resumen de rentabilidad</h2>
-      <p>Ganancia realizada: $0.00</p>
-      <p>Ganancia potencial: $0.00</p>
+    <div class="vacio" *ngIf="!cargando && !error && !resumen">
+      <p>No hay datos de resumen disponibles.</p>
     </div>
 
   </div>

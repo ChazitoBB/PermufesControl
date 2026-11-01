@@ -1,5 +1,4 @@
-
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -12,7 +11,8 @@ import {
 
 import {
   DatabaseService,
-  Cliente
+  Cliente,
+  SaldoCliente
 } from '../services/database.service';
 
 @Component({
@@ -29,9 +29,10 @@ import {
     IonContent
   ]
 })
-export class Tab2Page implements OnInit {
+export class Tab2Page {
 
   clientes: Cliente[] = [];
+  saldosPorCliente = new Map<number, number>();
 
   nombre = '';
   telefono = '';
@@ -44,37 +45,68 @@ export class Tab2Page implements OnInit {
   error = '';
   errorCarga = '';
 
-
   constructor(
     private database: DatabaseService,
     private cdr: ChangeDetectorRef
-  ) { }
+  ) {}
 
+  async ionViewWillEnter(): Promise<void> {
+    await this.cargarClientesYSaldos();
+  }
 
+  private async cargarClientesYSaldos(): Promise<void> {
+    this.cargando = true;
+    this.errorCarga = '';
+    this.cdr.detectChanges();
 
-  async ngOnInit(): Promise<void> {
     try {
-      this.clientes = await this.database.listarClientes();
+      const [clientes, saldos] = await Promise.all([
+        this.database.listarClientes(),
+        this.database.listarSaldosClientes()
+      ]);
 
-      console.log(
-        'Clientes recuperados de SQLite:',
-        this.clientes
-      );
-
+      this.clientes = Array.isArray(clientes) ? clientes : [];
+      this.saldosPorCliente = this.mapearSaldos(saldos);
     } catch (error) {
       console.error('Error al cargar clientes:', error);
-
-      this.errorCarga =
-        'No se pudo abrir la base de datos.';
-
+      this.clientes = [];
+      this.saldosPorCliente = new Map();
+      this.errorCarga = 'No se pudo abrir la base de datos.';
     } finally {
       this.cargando = false;
-
-      // Notificar a Angular que los datos cambiaron
-      this.cdr.markForCheck();
+      this.cdr.detectChanges();
     }
   }
 
+  private mapearSaldos(saldos: SaldoCliente[]): Map<number, number> {
+    const mapa = new Map<number, number>();
+    for (const saldo of saldos ?? []) {
+      mapa.set(
+        Number(saldo.cliente_id),
+        Number(saldo.saldo_centavos) || 0
+      );
+    }
+    return mapa;
+  }
+
+  saldoDe(clienteId: number): number {
+    return this.saldosPorCliente.get(clienteId) ?? 0;
+  }
+
+  textoSaldo(clienteId: number): string {
+    const saldo = this.saldoDe(clienteId);
+    if (saldo > 0) {
+      return `Saldo pendiente: ${this.formatoMXN(saldo)}`;
+    }
+    return 'Cuenta liquidada';
+  }
+
+  formatoMXN(centavos: number): string {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN'
+    }).format((Number(centavos) || 0) / 100);
+  }
 
   get clientesFiltrados(): Cliente[] {
     const texto = this.busqueda.trim().toLowerCase();
@@ -97,7 +129,6 @@ export class Tab2Page implements OnInit {
   }
 
   async guardarCliente(): Promise<void> {
-
     if (this.guardando) return;
 
     const nombre = this.nombre.trim();
@@ -116,18 +147,14 @@ export class Tab2Page implements OnInit {
         this.telefono
       );
 
-      this.clientes = await this.database.listarClientes();
-
+      await this.cargarClientesYSaldos();
       this.cancelarFormulario();
-
     } catch (error) {
       console.error('Error al guardar cliente:', error);
       this.error = 'No se pudo guardar el cliente.';
-
     } finally {
       this.guardando = false;
-      this.cdr.markForCheck();
+      this.cdr.detectChanges();
     }
-
   }
 }

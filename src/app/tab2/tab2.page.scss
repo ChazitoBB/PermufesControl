@@ -160,6 +160,15 @@
     font-size: 12px;
     color: var(--ion-color-medium);
   }
+
+  .saldo-pendiente {
+    color: var(--ion-color-warning-shade, #b54708);
+    font-weight: 600;
+  }
+
+  .cuenta-liquidada {
+    color: var(--ion-color-success-shade, #2f6b3a);
+  }
 }
 
 .vacio {

@@ -107,6 +107,17 @@ export interface SaldoCliente {
   saldo_centavos: number;
 }
 
+/** Indicadores del panel de Inicio (importes en centavos). */
+export interface ResumenInicio {
+  fecha: string;
+  ventas_hoy_centavos: number;
+  cobros_hoy_centavos: number;
+  saldo_por_cobrar_centavos: number;
+  inventario_unidades: number;
+  ganancia_bruta_ventas_centavos: number;
+  ganancia_potencial_inventario_centavos: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DatabaseService {
   private readonly nombreBD = 'perfumescontrol';
@@ -742,5 +753,78 @@ export class DatabaseService {
       ORDER BY a.fecha DESC, a.id DESC
     `);
     return (r.values ?? []) as Abono[];
+  }
+
+  private fechaLocalHoy(): string {
+    const hoy = new Date();
+    const anio = hoy.getFullYear();
+    const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoy.getDate()).padStart(2, '0');
+    return `${anio}-${mes}-${dia}`;
+  }
+
+  /**
+   * Resumen del dashboard.
+   * Ventas/cobros del día usan la fecha de registro.
+   * Cobros suman filas de abonos (pago inicial y abonos; sin duplicar).
+   * Ganancias: bruta acumulada (FIFO) y potencial del inventario neto.
+   */
+  async obtenerResumenInicio(fecha?: string): Promise<ResumenInicio> {
+    await this.iniciar();
+    const dia = fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha)
+      ? fecha
+      : this.fechaLocalHoy();
+
+    const ventasHoy = await this.conexion!.query(`
+      SELECT COALESCE(SUM(cantidad * precio_unitario_centavos), 0) AS total
+      FROM ventas
+      WHERE fecha = ?
+    `, [dia]);
+
+    // Cada pago (inicial o abono) es una sola fila en abonos.
+    const cobrosHoy = await this.conexion!.query(`
+      SELECT COALESCE(SUM(importe_centavos), 0) AS total
+      FROM abonos
+      WHERE fecha = ?
+    `, [dia]);
+
+    const saldos = await this.listarSaldosClientes();
+    const saldoPorCobrar = saldos.reduce(
+      (suma, s) => suma + Number(s.saldo_centavos || 0),
+      0
+    );
+
+    const existencias = await this.listarExistencias();
+    const inventarioUnidades = existencias.reduce(
+      (suma, e) => suma + Number(e.unidades || 0),
+      0
+    );
+    const gananciaPotencial = existencias.reduce(
+      (suma, e) => suma + Number(e.ganancia_potencial_centavos || 0),
+      0
+    );
+
+    // Ingresos de todas las ventas menos costos históricos FIFO.
+    const gananciaBruta = await this.conexion!.query(`
+      SELECT COALESCE(SUM(
+        v.cantidad * v.precio_unitario_centavos - COALESCE((
+          SELECT SUM(vc.cantidad * vc.costo_unitario_centavos)
+          FROM venta_consumos vc
+          WHERE vc.venta_id = v.id
+        ), 0)
+      ), 0) AS total
+      FROM ventas v
+    `);
+
+    return {
+      fecha: dia,
+      ventas_hoy_centavos: Number(ventasHoy.values?.[0]?.total) || 0,
+      cobros_hoy_centavos: Number(cobrosHoy.values?.[0]?.total) || 0,
+      saldo_por_cobrar_centavos: saldoPorCobrar,
+      inventario_unidades: inventarioUnidades,
+      ganancia_bruta_ventas_centavos:
+        Number(gananciaBruta.values?.[0]?.total) || 0,
+      ganancia_potencial_inventario_centavos: gananciaPotencial
+    };
   }
 }
