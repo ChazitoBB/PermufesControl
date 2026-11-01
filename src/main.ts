@@ -1,3 +1,4 @@
+import { defineCustomElements as jeepSqlite } from 'jeep-sqlite/loader';
 import { bootstrapApplication } from '@angular/platform-browser';
 import {
   RouteReuseStrategy,
@@ -18,3 +19,4 @@ bootstrapApplication(AppComponent, {
     provideRouter(routes, withPreloading(PreloadAllModules), withComponentInputBinding()),
   ],
 });
+jeepSqlite(window);

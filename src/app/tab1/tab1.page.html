@@ -1,15 +1,46 @@
+
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title> Tab 1 </ion-title>
+    <ion-title>PerfumesControl</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Tab 1</ion-title>
-    </ion-toolbar>
-  </ion-header>
+  <div class="contenedor">
 
-  <app-explore-container name="Tab 1 page"></app-explore-container>
+    <div class="encabezado">
+      <p class="subtitulo">MI NEGOCIO</p>
+      <h1>Resumen general</h1>
+      <p>Control de ventas, cobros e inventario</p>
+    </div>
+
+    <div class="tarjetas">
+      <div class="tarjeta">
+        <span>Ventas registradas</span>
+        <strong>$0.00</strong>
+      </div>
+
+      <div class="tarjeta">
+        <span>Dinero cobrado</span>
+        <strong>$0.00</strong>
+      </div>
+
+      <div class="tarjeta">
+        <span>Saldo por cobrar</span>
+        <strong>$0.00</strong>
+      </div>
+
+      <div class="tarjeta">
+        <span>Inventario</span>
+        <strong>0 perfumes</strong>
+      </div>
+    </div>
+
+    <div class="seccion">
+      <h2>Resumen de rentabilidad</h2>
+      <p>Ganancia realizada: $0.00</p>
+      <p>Ganancia potencial: $0.00</p>
+    </div>
+
+  </div>
 </ion-content>

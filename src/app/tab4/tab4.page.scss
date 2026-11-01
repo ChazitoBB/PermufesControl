@@ -1,0 +1,28 @@
+.contenedor { max-width: 600px; margin: 0 auto; padding: 24px 18px 40px; }
+.encabezado { margin-bottom: 22px; }
+.subtitulo { color: var(--ion-color-primary); font-size: 12px; font-weight: 700; letter-spacing: 2px; }
+h1 { font-size: 28px; margin: 6px 0; }
+h2 { font-size: 18px; margin: 0 0 16px; }
+.encabezado p:last-child, .ayuda { color: var(--ion-color-medium); font-size: 13px; }
+.pestanas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 20px; padding: 4px; border-radius: 12px; background: var(--ion-color-step-50); }
+.pestanas button { padding: 12px 5px; color: var(--ion-color-medium); font-size: 13px; background: none; border: none; border-radius: 9px; cursor: pointer; }
+.pestanas button.activo { background: var(--ion-color-primary); color: var(--ion-color-primary-contrast); font-weight: 700; }
+.formulario, .historial { background: var(--ion-color-step-50); border-radius: 16px; padding: 18px; }
+label { display: block; font-size: 13px; margin: 15px 0 7px; }
+input, select { display: block; box-sizing: border-box; width: 100%; min-width: 0; padding: 13px; border: 1px solid var(--ion-color-step-200); border-radius: 10px; background: var(--ion-background-color); color: var(--ion-text-color); font-size: 14px; }
+.dos-columnas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.principal { margin-top: 20px; padding: 15px; width: 100%; border: none; border-radius: 12px; background: var(--ion-color-primary); color: var(--ion-color-primary-contrast); font-size: 15px; font-weight: 700; cursor: pointer; }
+.principal:disabled { opacity: 0.5; }
+.resumen { padding: 14px; background: var(--ion-background-color); border-radius: 12px; margin-top: 18px; }
+.resumen > div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; font-size: 13px; }
+.resumen > div:last-child { border-top: 1px solid var(--ion-color-step-150); font-size: 15px; }
+.resumen span { color: var(--ion-color-medium); }
+.error { color: var(--ion-color-danger); padding: 8px 0; }
+.mensaje, .positivo { color: var(--ion-color-success); }
+.historial h2 { margin: 24px 0 12px; }
+.historial h2:first-of-type { margin-top: 18px; }
+.fila { padding: 14px 0; display: flex; align-items: start; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--ion-color-step-150); }
+.fila div { min-width: 0; }
+.fila strong { font-size: 13px; }
+.fila > strong { white-space: nowrap; }
+.fila small { display: block; color: var(--ion-color-medium); font-size: 11px; margin-top: 5px; overflow-wrap: anywhere; }

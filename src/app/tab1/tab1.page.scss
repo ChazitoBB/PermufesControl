@@ -1,0 +1,70 @@
+
+.contenedor {
+  padding: 24px 18px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.encabezado {
+  margin-bottom: 28px;
+
+  .subtitulo {
+    color: var(--ion-color-primary);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  p {
+    color: var(--ion-color-medium);
+  }
+}
+
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tarjeta {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--ion-card-background, var(--ion-color-step-50));
+  border: 1px solid var(--ion-color-step-150);
+
+  span {
+    display: block;
+    font-size: 13px;
+    color: var(--ion-color-medium);
+  }
+
+  strong {
+    display: block;
+    font-size: 23px;
+    margin-top: 12px;
+    overflow-wrap: anywhere;
+  }
+}
+
+.seccion {
+  margin-top: 28px;
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--ion-card-background, var(--ion-color-step-50));
+
+  h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+
+  p {
+    color: var(--ion-color-medium);
+    font-size: 14px;
+  }
+}

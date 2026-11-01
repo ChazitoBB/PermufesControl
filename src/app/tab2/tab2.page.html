@@ -1,15 +1,129 @@
+
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title> Tab 2 </ion-title>
+    <ion-title>Clientes</ion-title>
   </ion-toolbar>
 </ion-header>
+<p class="error" *ngIf="errorCarga">
+  {{ errorCarga }}
+</p>
+
+<p *ngIf="cargando">
+  Cargando clientes...
+</p>
 
 <ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Tab 2</ion-title>
-    </ion-toolbar>
-  </ion-header>
+  <div class="contenedor">
 
-  <app-explore-container name="Tab 2 page"></app-explore-container>
+    <div class="encabezado">
+      <p class="subtitulo">MI NEGOCIO</p>
+      <h1>Mis clientes</h1>
+      <p>Administra tus compradores y sus cuentas.</p>
+    </div>
+
+    <button
+      class="btn-principal"
+      *ngIf="!mostrarFormulario"
+      (click)="abrirFormulario()">
+      + Nuevo cliente
+    </button>
+
+    <!-- FORMULARIO -->
+    <form
+      class="formulario"
+      *ngIf="mostrarFormulario"
+      (ngSubmit)="guardarCliente()">
+
+      <h2>Registrar cliente</h2>
+
+      <label for="nombre">Nombre completo</label>
+      <input
+        id="nombre"
+        name="nombre"
+        type="text"
+        placeholder="Ej. María González"
+        [(ngModel)]="nombre"
+        maxlength="100"
+        required />
+
+      <label for="telefono">Teléfono (opcional)</label>
+      <input
+        id="telefono"
+        name="telefono"
+        type="tel"
+        placeholder="Ej. 7711234567"
+        [(ngModel)]="telefono"
+        maxlength="20" />
+
+      <p class="error" *ngIf="error">
+        {{ error }}
+      </p>
+
+      
+<button
+  type="submit"
+  class="btn-principal"
+  [disabled]="!nombre.trim() || guardando || cargando || !!errorCarga">
+  Guardar cliente
+</button>
+
+
+      <button
+        type="button"
+        class="btn-cancelar"
+        (click)="cancelarFormulario()">
+        Cancelar
+      </button>
+    </form>
+
+    <!-- BUSCADOR -->
+    <div class="buscador">
+      <input
+        type="search"
+        placeholder="Buscar cliente..."
+        aria-label="Buscar cliente"
+        [(ngModel)]="busqueda" />
+    </div>
+
+    <div class="lista-header">
+      <h2>Clientes registrados</h2>
+      <span>{{ clientes.length }}</span>
+    </div>
+
+    <!-- SIN CLIENTES -->
+    <div class="vacio" *ngIf="!cargando && !errorCarga && clientes.length === 0">
+      <h3>Aún no tienes clientes</h3>
+      <p>Registra tu primer cliente para comenzar.</p>
+    </div>
+
+    <!-- SIN RESULTADOS -->
+    <div
+      class="vacio"
+      *ngIf="clientes.length > 0 &&
+             clientesFiltrados.length === 0">
+      <p>No encontramos clientes con ese nombre.</p>
+    </div>
+
+    <!-- LISTADO -->
+    <div
+      class="cliente-card"
+      *ngFor="let cliente of clientesFiltrados">
+
+      <div class="avatar">
+        {{ cliente.nombre.charAt(0).toUpperCase() }}
+      </div>
+
+      <div class="cliente-info">
+        <h3>{{ cliente.nombre }}</h3>
+
+        <p *ngIf="cliente.telefono">
+          {{ cliente.telefono }}
+        </p>
+
+        <span>Cuenta sin movimientos</span>
+      </div>
+
+    </div>
+
+  </div>
 </ion-content>

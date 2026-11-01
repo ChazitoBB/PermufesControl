@@ -1,0 +1,135 @@
+<ion-header [translucent]="true">
+  <ion-toolbar><ion-title>Ventas y abonos</ion-title></ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="contenedor">
+    <div class="encabezado">
+      <p class="subtitulo">MI NEGOCIO</p>
+      <h1>Ventas y abonos</h1>
+      <p>Registra ventas y lleva una sola cuenta por cliente.</p>
+    </div>
+
+    <div class="pestanas">
+      <button type="button" [class.activo]="vista === 'venta'"
+        (click)="cambiarVista('venta')">Nueva venta</button>
+      <button type="button" [class.activo]="vista === 'abono'"
+        (click)="cambiarVista('abono')">Abonar</button>
+      <button type="button" [class.activo]="vista === 'historial'"
+        (click)="cambiarVista('historial')">Historial</button>
+    </div>
+
+    <p *ngIf="cargando">Cargando datos...</p>
+    <p class="error" *ngIf="error">{{ error }}</p>
+    <p class="mensaje" *ngIf="mensaje">{{ mensaje }}</p>
+
+    <div *ngIf="!cargando && vista === 'venta'">
+      <form class="formulario" (ngSubmit)="guardarVenta()">
+        <h2>Registrar venta</h2>
+
+        <label for="venta-cliente">Cliente</label>
+        <select id="venta-cliente" name="clienteVentaId" [(ngModel)]="clienteVentaId" required>
+          <option [ngValue]="null">Selecciona un cliente</option>
+          <option *ngFor="let c of clientes" [ngValue]="c.id">{{ c.nombre }}</option>
+        </select>
+        <p class="ayuda" *ngIf="clienteVentaId">
+          Deuda anterior: {{ formatoMXN(saldoCliente(clienteVentaId)) }}
+        </p>
+
+        <label for="venta-perfume">Perfume</label>
+        <select id="venta-perfume" name="productoVentaId"
+          [ngModel]="productoVentaId" (ngModelChange)="seleccionarProducto($event)" required>
+          <option [ngValue]="null">Selecciona un perfume con existencias</option>
+          <option *ngFor="let p of disponibles" [ngValue]="p.id">
+            {{ p.nombre }} · {{ p.mililitros }} ml ({{ stock(p.id) }} disponibles)
+          </option>
+        </select>
+
+        <div class="dos-columnas">
+          <div>
+            <label for="venta-cantidad">Cantidad</label>
+            <input id="venta-cantidad" type="number" min="1" step="1"
+              name="cantidadVenta" [(ngModel)]="cantidadVenta" required />
+          </div>
+          <div>
+            <label for="venta-precio">Precio por unidad ($)</label>
+            <input id="venta-precio" type="text" inputmode="decimal"
+              name="precioVenta" [(ngModel)]="precioVenta" required />
+          </div>
+        </div>
+
+        <label for="venta-pago">Pago inicial ($) · 0 si queda a deber</label>
+        <input id="venta-pago" type="text" inputmode="decimal"
+          name="pagoInicial" [(ngModel)]="pagoInicial" required />
+
+        <label for="venta-fecha">Fecha de venta</label>
+        <input id="venta-fecha" type="date" name="fechaVenta"
+          [(ngModel)]="fechaVenta" required />
+
+        <div class="resumen">
+          <div><span>Total de venta</span><strong>{{ formatoMXN(totalCentavos) }}</strong></div>
+          <div><span>Pago inicial</span><strong>{{ formatoMXN(pagoCentavos) }}</strong></div>
+          <div><span>Deuda agregada</span>
+            <strong>{{ formatoMXN(totalCentavos - pagoCentavos) }}</strong></div>
+        </div>
+
+        <button class="principal" type="submit" [disabled]="guardando || !clientes.length || !disponibles.length">
+          {{ guardando ? 'Guardando...' : 'Guardar venta' }}
+        </button>
+      </form>
+      <p class="ayuda" *ngIf="clientes.length === 0">Primero registra un cliente en Clientes.</p>
+      <p class="ayuda" *ngIf="disponibles.length === 0">Primero registra una compra en Inventario.</p>
+    </div>
+
+    <div *ngIf="!cargando && vista === 'abono'">
+      <form class="formulario" (ngSubmit)="guardarAbono()">
+        <h2>Registrar abono</h2>
+        <label for="abono-cliente">Cliente</label>
+        <select id="abono-cliente" name="clienteAbonoId"
+          [(ngModel)]="clienteAbonoId" required>
+          <option [ngValue]="null">Selecciona un cliente</option>
+          <option *ngFor="let s of saldos" [ngValue]="s.cliente_id">
+            {{ s.nombre }} · Debe {{ formatoMXN(s.saldo_centavos) }}
+          </option>
+        </select>
+        <p class="ayuda" *ngIf="clienteAbonoId">
+          Saldo actual: {{ formatoMXN(saldoCliente(clienteAbonoId)) }}
+        </p>
+        <label for="abono-importe">Importe del abono ($)</label>
+        <input id="abono-importe" name="importeAbono" type="text"
+          inputmode="decimal" [(ngModel)]="importeAbono" required />
+        <label for="abono-fecha">Fecha del abono</label>
+        <input id="abono-fecha" name="fechaAbono" type="date"
+          [(ngModel)]="fechaAbono" required />
+        <button class="principal" type="submit" [disabled]="guardando || !clienteAbonoId">
+          {{ guardando ? 'Guardando...' : 'Guardar abono' }}
+        </button>
+      </form>
+    </div>
+
+    <div *ngIf="!cargando && vista === 'historial'" class="historial">
+      <div class="resumen resumen-global">
+        <div><span>Total por cobrar</span><strong>{{ formatoMXN(totalPorCobrar) }}</strong></div>
+      </div>
+      <h2>Saldo global por cliente</h2>
+      <div class="fila" *ngFor="let s of saldos">
+        <div><strong>{{ s.nombre }}</strong><small>Compras: {{ formatoMXN(s.total_ventas_centavos) }} · Pagos: {{ formatoMXN(s.total_abonos_centavos) }}</small></div>
+        <strong>{{ formatoMXN(s.saldo_centavos) }}</strong>
+      </div>
+
+      <h2>Ventas recientes</h2>
+      <p class="ayuda" *ngIf="ventas.length === 0">Todavía no hay ventas.</p>
+      <div class="fila" *ngFor="let v of ventas.slice(0, 10)">
+        <div><strong>{{ v.cliente }}</strong><small>{{ v.fecha }} · {{ v.cantidad }} × {{ v.producto }} ({{ v.mililitros }} ml)</small></div>
+        <strong>{{ formatoMXN(v.total_centavos) }}</strong>
+      </div>
+
+      <h2>Abonos recientes</h2>
+      <p class="ayuda" *ngIf="abonos.length === 0">Todavía no hay abonos.</p>
+      <div class="fila" *ngFor="let a of abonos.slice(0, 10)">
+        <div><strong>{{ a.cliente }}</strong><small>{{ a.fecha }} · {{ a.concepto }}</small></div>
+        <strong class="positivo">{{ formatoMXN(a.importe_centavos) }}</strong>
+      </div>
+    </div>
+  </div>
+</ion-content>

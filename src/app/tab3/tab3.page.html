@@ -1,15 +1,163 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title> Tab 3 </ion-title>
+    <ion-title>Inventario</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Tab 3</ion-title>
-    </ion-toolbar>
-  </ion-header>
+  <div class="contenedor">
+    <div class="encabezado">
+      <p class="subtitulo">MI NEGOCIO</p>
+      <h1>Mis perfumes</h1>
+      <p>Administra tu catálogo y registra tus compras.</p>
+    </div>
 
-  <app-explore-container name="Tab 3 page"></app-explore-container>
+    <p class="error" *ngIf="errorCarga">{{ errorCarga }}</p>
+    <p *ngIf="cargando">Cargando inventario...</p>
+
+    <button
+      *ngIf="!mostrarFormulario"
+      type="button"
+      class="btn-principal"
+      [disabled]="cargando || !!errorCarga"
+      (click)="abrirFormulario()">
+      + Agregar perfume
+    </button>
+
+    <form *ngIf="mostrarFormulario" class="formulario" (ngSubmit)="guardarProducto()">
+      <h2>Nuevo perfume</h2>
+
+      <label for="nombre">Nombre o referencia</label>
+      <input id="nombre" name="nombre" type="text" maxlength="100"
+        placeholder="Ej. Perfume clásico" [(ngModel)]="nombre" required />
+
+      <label for="mililitros">Presentación</label>
+      <select id="mililitros" name="mililitros"
+        [ngModel]="mililitros" (ngModelChange)="cambiarPresentacion($event)">
+        <option [ngValue]="60">60 ml</option>
+        <option [ngValue]="120">120 ml</option>
+      </select>
+
+      <label for="costo">Costo de compra por unidad ($)</label>
+      <input id="costo" name="costo" type="text" inputmode="decimal"
+        placeholder="Ej. 180" [(ngModel)]="costo" required />
+
+      <label for="precio">Precio de venta por unidad ($)</label>
+      <input id="precio" name="precio" type="text" inputmode="decimal"
+        placeholder="Ej. 280" [(ngModel)]="precio" required />
+
+      <p class="error" *ngIf="error">{{ error }}</p>
+      <button type="submit" class="btn-principal"
+        [disabled]="guardando || cargando || !!errorCarga">
+        {{ guardando ? 'Guardando...' : 'Guardar perfume' }}
+      </button>
+      <button type="button" class="btn-cancelar" (click)="cancelarFormulario()">
+        Cancelar
+      </button>
+    </form>
+
+    <p class="mensaje" *ngIf="mensaje">{{ mensaje }}</p>
+
+    <!-- Este resumen refleja el inventario que queda después de las ventas. -->
+    <div class="resumen-inventario" *ngIf="!cargando && !errorCarga">
+      <h2>Inventario disponible</h2>
+      <div class="resumen-grid">
+        <div>
+          <small>Unidades disponibles</small>
+          <strong>{{ totalUnidades }}</strong>
+        </div>
+        <div>
+          <small>Valor de inventario al costo</small>
+          <strong>{{ formatoMXN(inversionTotal) }}</strong>
+        </div>
+        <div>
+          <small>Ingreso potencial</small>
+          <strong>{{ formatoMXN(ingresoPotencial) }}</strong>
+        </div>
+        <div>
+          <small>Ganancia bruta potencial</small>
+          <strong class="positivo">{{ formatoMXN(gananciaPotencial) }}</strong>
+        </div>
+      </div>
+
+      <h3 *ngIf="compras.length > 0">Últimas compras</h3>
+      <div class="compra-historial" *ngFor="let compra of compras.slice(0, 5)">
+        <span>{{ compra.fecha }} · {{ compra.nombre }} ({{ compra.mililitros }} ml)</span>
+        <strong>+{{ compra.cantidad }} uds.</strong>
+      </div>
+    </div>
+
+    <div class="lista-header">
+      <h2>Perfumes registrados</h2>
+      <span>{{ productos.length }}</span>
+    </div>
+
+    <div class="vacio" *ngIf="!cargando && !errorCarga && productos.length === 0">
+      <h3>Tu catálogo está vacío</h3>
+      <p>Registra tu primer perfume para comenzar.</p>
+    </div>
+
+    <div class="producto-card" *ngFor="let producto of productos">
+      <div class="producto-header">
+        <h3>{{ producto.nombre }}</h3>
+        <span class="presentacion">{{ producto.mililitros }} ml</span>
+      </div>
+
+      <div class="precios">
+        <div>
+          <small>Costo de compra de referencia</small>
+          <strong>{{ formatoMXN(producto.costo_referencia_centavos) }}</strong>
+        </div>
+        <div>
+          <small>Precio de venta</small>
+          <strong>{{ formatoMXN(producto.precio_venta_centavos) }}</strong>
+        </div>
+      </div>
+
+      <div class="ganancia">
+        <span>Ganancia bruta estimada por unidad</span>
+        <strong>
+          {{ formatoMXN(producto.precio_venta_centavos - producto.costo_referencia_centavos) }}
+        </strong>
+      </div>
+
+      <div class="existencias-producto">
+        <span>Unidades disponibles</span>
+        <strong>{{ obtenerUnidades(producto.id) }}</strong>
+      </div>
+
+      <button type="button" class="btn-compra"
+        [disabled]="guardandoCompra || !!errorCarga"
+        (click)="abrirCompra(producto)">
+        + Registrar compra
+      </button>
+
+      <form *ngIf="productoCompra?.id === producto.id"
+        class="formulario-compra" (ngSubmit)="guardarCompra()">
+        <h4>Comprar: {{ producto.nombre }} ({{ producto.mililitros }} ml)</h4>
+
+        <label for="cantidad-compra">Cantidad comprada</label>
+        <input id="cantidad-compra" name="cantidadCompra" type="number"
+          min="1" step="1" [(ngModel)]="cantidadCompra" required />
+
+        <label for="costo-compra">Costo por unidad ($)</label>
+        <input id="costo-compra" name="costoCompra" type="text" inputmode="decimal"
+          [(ngModel)]="costoCompra" required />
+
+        <label for="fecha-compra">Fecha de compra</label>
+        <input id="fecha-compra" name="fechaCompra" type="date"
+          [(ngModel)]="fechaCompra" required />
+
+        <p class="error" *ngIf="errorCompra">{{ errorCompra }}</p>
+
+        <button type="submit" class="btn-principal" [disabled]="guardandoCompra">
+          {{ guardandoCompra ? 'Guardando...' : 'Guardar compra' }}
+        </button>
+        <button type="button" class="btn-cancelar"
+          [disabled]="guardandoCompra" (click)="cancelarCompra()">
+          Cancelar
+        </button>
+      </form>
+    </div>
+  </div>
 </ion-content>
