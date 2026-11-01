@@ -50,6 +50,44 @@ export interface Venta {
   total_centavos: number;
   costo_total_centavos: number;
   fecha: string;
+  operacion_id: number | null;
+}
+
+export interface LineaVentaEntrada {
+  productoId: number;
+  cantidad: number;
+  precioCentavos: number;
+}
+
+export interface OperacionVentaResumen {
+  id: number;
+  cliente_id: number;
+  cliente: string;
+  fecha: string;
+  total_centavos: number;
+  pago_inicial_centavos: number;
+  lineas_count: number;
+}
+
+export interface LineaOperacionVenta {
+  id: number;
+  producto_id: number;
+  producto: string;
+  mililitros: number;
+  cantidad: number;
+  precio_unitario_centavos: number;
+  total_centavos: number;
+  costo_total_centavos: number;
+}
+
+export interface OperacionVentaDetalle {
+  id: number;
+  cliente_id: number;
+  cliente: string;
+  fecha: string;
+  total_centavos: number;
+  pago_inicial_centavos: number;
+  lineas: LineaOperacionVenta[];
 }
 
 export interface Abono {
@@ -173,7 +211,74 @@ export class DatabaseService {
       );
     `);
 
+    // Agrupa líneas de una misma operación sin destruir ventas previas.
+    await this.migrarOperacionesVenta();
+
     await this.persistirWeb();
+  }
+
+  // Migración no destructiva: crea operaciones_venta y vincula ventas antiguas.
+  private async migrarOperacionesVenta(): Promise<void> {
+    await this.conexion!.execute(`
+      CREATE TABLE IF NOT EXISTS operaciones_venta (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cliente_id INTEGER NOT NULL REFERENCES clientes(id),
+        fecha TEXT NOT NULL,
+        abono_id INTEGER REFERENCES abonos(id),
+        creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    const info = await this.conexion!.query('PRAGMA table_info(ventas)');
+    const columnas = (info.values ?? []).map(
+      (columna: { name: string }) => columna.name
+    );
+    if (!columnas.includes('operacion_id')) {
+      await this.conexion!.execute(`
+        ALTER TABLE ventas
+        ADD COLUMN operacion_id INTEGER REFERENCES operaciones_venta(id)
+      `);
+    }
+
+    const huerfanas = await this.conexion!.query(`
+      SELECT id, cliente_id, fecha
+      FROM ventas
+      WHERE operacion_id IS NULL
+      ORDER BY id ASC
+    `);
+    const pendientes = huerfanas.values ?? [];
+    if (pendientes.length === 0) {
+      return;
+    }
+
+    await this.conexion!.beginTransaction();
+    try {
+      for (const venta of pendientes) {
+        const insertado = await this.conexion!.run(
+          `INSERT INTO operaciones_venta (cliente_id, fecha)
+           VALUES (?, ?)`,
+          [venta.cliente_id, venta.fecha],
+          false
+        );
+        const operacionId = insertado.changes?.lastId;
+        if (
+          typeof operacionId !== 'number' ||
+          !Number.isSafeInteger(operacionId) ||
+          operacionId <= 0
+        ) {
+          throw new Error('No se pudo migrar una venta histórica a operación.');
+        }
+        await this.conexion!.run(
+          'UPDATE ventas SET operacion_id = ? WHERE id = ?',
+          [operacionId, venta.id],
+          false
+        );
+      }
+      await this.conexion!.commitTransaction();
+    } catch (error) {
+      await this.conexion!.rollbackTransaction();
+      throw error;
+    }
   }
 
   private async persistirWeb(): Promise<void> {
@@ -299,8 +404,7 @@ export class DatabaseService {
     return (resultado.values ?? []) as ExistenciaProducto[];
   }
 
-  // Se inserta venta, consumo de existencias FIFO y pago inicial
-  // dentro de una sola transacción, para evitar ventas incompletas.
+  // Compatibilidad: una sola línea se registra como operación multiproducto.
   async registrarVenta(datos: {
     clienteId: number;
     productoId: number;
@@ -309,84 +413,175 @@ export class DatabaseService {
     abonoInicialCentavos: number;
     fecha: string;
   }): Promise<void> {
+    await this.registrarVentaMultiple({
+      clienteId: datos.clienteId,
+      lineas: [{
+        productoId: datos.productoId,
+        cantidad: datos.cantidad,
+        precioCentavos: datos.precioCentavos
+      }],
+      abonoInicialCentavos: datos.abonoInicialCentavos,
+      fecha: datos.fecha
+    });
+  }
+
+  // Una operación, varias líneas, un solo pago inicial; todo o nada.
+  async registrarVentaMultiple(datos: {
+    clienteId: number;
+    lineas: LineaVentaEntrada[];
+    abonoInicialCentavos: number;
+    fecha: string;
+  }): Promise<number> {
     await this.iniciar();
-    const { clienteId, productoId, cantidad, precioCentavos,
-            abonoInicialCentavos, fecha } = datos;
-    const total = cantidad * precioCentavos;
+    const { clienteId, lineas, abonoInicialCentavos, fecha } = datos;
     const enteroPositivo = (n: number) => Number.isSafeInteger(n) && n > 0;
-    if (!enteroPositivo(clienteId) || !enteroPositivo(productoId) ||
-        !enteroPositivo(cantidad) || !enteroPositivo(precioCentavos) ||
-        !Number.isSafeInteger(total) ||
-        !Number.isSafeInteger(abonoInicialCentavos) ||
-        abonoInicialCentavos < 0 || abonoInicialCentavos > total ||
+
+    if (!enteroPositivo(clienteId) || !Array.isArray(lineas) || lineas.length === 0 ||
+        !Number.isSafeInteger(abonoInicialCentavos) || abonoInicialCentavos < 0 ||
         !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
       throw new Error('Revisa los datos de la venta.');
     }
 
+    let totalOperacion = 0;
+    const productosVistos = new Set<number>();
+    for (const linea of lineas) {
+      if (!enteroPositivo(linea.productoId) ||
+          !enteroPositivo(linea.cantidad) ||
+          !enteroPositivo(linea.precioCentavos)) {
+        throw new Error('Revisa producto, cantidad y precio de cada línea.');
+      }
+      if (productosVistos.has(linea.productoId)) {
+        throw new Error('El carrito no puede repetir el mismo perfume.');
+      }
+      productosVistos.add(linea.productoId);
+      const subtotal = linea.cantidad * linea.precioCentavos;
+      if (!Number.isSafeInteger(subtotal)) {
+        throw new Error('El importe de una línea es demasiado grande.');
+      }
+      totalOperacion += subtotal;
+      if (!Number.isSafeInteger(totalOperacion)) {
+        throw new Error('El total de la operación es demasiado grande.');
+      }
+    }
+    if (abonoInicialCentavos > totalOperacion) {
+      throw new Error('El pago inicial no puede superar el total de la venta.');
+    }
+
+    let operacionId = 0;
     await this.conexion!.beginTransaction();
     try {
       const clientes = await this.conexion!.query(
         'SELECT id FROM clientes WHERE id = ?', [clienteId]
       );
-      const productos = await this.conexion!.query(
-        'SELECT id FROM productos WHERE id = ?', [productoId]
-      );
-      if (!clientes.values?.length || !productos.values?.length) {
-        throw new Error('El cliente o el perfume ya no existe.');
+      if (!clientes.values?.length) {
+        throw new Error('El cliente ya no existe.');
       }
 
-      const lotes = await this.conexion!.query(`
-        SELECT c.id, c.costo_unitario_centavos,
-          c.cantidad - COALESCE((
-            SELECT SUM(vc.cantidad) FROM venta_consumos vc
-            WHERE vc.compra_id = c.id
-          ), 0) AS disponibles
-        FROM compras c WHERE c.producto_id = ?
-        ORDER BY c.fecha ASC, c.id ASC
-      `, [productoId]);
-      let restante = cantidad;
-      const consumos: {compraId: number; cantidad: number; costo: number}[] = [];
-      for (const lote of (lotes.values ?? [])) {
-        const tomar = Math.min(restante, Number(lote.disponibles));
-        if (tomar > 0) {
-          consumos.push({
-            compraId: Number(lote.id), cantidad: tomar,
-            costo: Number(lote.costo_unitario_centavos)
-          });
-          restante -= tomar;
+      const operacionInsertada = await this.conexion!.run(`
+        INSERT INTO operaciones_venta (cliente_id, fecha)
+        VALUES (?, ?)
+      `, [clienteId, fecha], false);
+      const nuevoOperacionId = operacionInsertada.changes?.lastId;
+      if (
+        typeof nuevoOperacionId !== 'number' ||
+        !Number.isSafeInteger(nuevoOperacionId) ||
+        nuevoOperacionId <= 0
+      ) {
+        throw new Error('No se pudo crear la operación de venta.');
+      }
+      operacionId = nuevoOperacionId;
+
+      for (const linea of lineas) {
+        const productos = await this.conexion!.query(
+          'SELECT id FROM productos WHERE id = ?', [linea.productoId]
+        );
+        if (!productos.values?.length) {
+          throw new Error('Un perfume del carrito ya no existe.');
         }
-        if (restante === 0) break;
-      }
-      if (restante > 0) throw new Error('No hay suficientes existencias.');
 
-      const insertado = await this.conexion!.run(`
-        INSERT INTO ventas
-          (cliente_id, producto_id, cantidad, precio_unitario_centavos, fecha)
-        VALUES (?, ?, ?, ?, ?)
-      `, [clienteId, productoId, cantidad, precioCentavos, fecha], false);
-      const ventaId = insertado.changes?.lastId;
-      if (typeof ventaId !== 'number' || !Number.isSafeInteger(ventaId) || ventaId <= 0) {
-        throw new Error('No se pudo identificar la venta registrada.');
+        const lotes = await this.conexion!.query(`
+          SELECT c.id, c.costo_unitario_centavos,
+            c.cantidad - COALESCE((
+              SELECT SUM(vc.cantidad) FROM venta_consumos vc
+              WHERE vc.compra_id = c.id
+            ), 0) AS disponibles
+          FROM compras c WHERE c.producto_id = ?
+          ORDER BY c.fecha ASC, c.id ASC
+        `, [linea.productoId]);
+
+        let restante = linea.cantidad;
+        const consumos: { compraId: number; cantidad: number; costo: number }[] = [];
+        for (const lote of (lotes.values ?? [])) {
+          const tomar = Math.min(restante, Number(lote.disponibles));
+          if (tomar > 0) {
+            consumos.push({
+              compraId: Number(lote.id),
+              cantidad: tomar,
+              costo: Number(lote.costo_unitario_centavos)
+            });
+            restante -= tomar;
+          }
+          if (restante === 0) break;
+        }
+        if (restante > 0) {
+          throw new Error('No hay suficientes existencias.');
+        }
+
+        const ventaInsertada = await this.conexion!.run(`
+          INSERT INTO ventas (
+            cliente_id, producto_id, cantidad,
+            precio_unitario_centavos, fecha, operacion_id
+          ) VALUES (?, ?, ?, ?, ?, ?)
+        `, [
+          clienteId, linea.productoId, linea.cantidad,
+          linea.precioCentavos, fecha, operacionId
+        ], false);
+        const ventaId = ventaInsertada.changes?.lastId;
+        if (
+          typeof ventaId !== 'number' ||
+          !Number.isSafeInteger(ventaId) ||
+          ventaId <= 0
+        ) {
+          throw new Error('No se pudo identificar una línea de venta.');
+        }
+
+        for (const consumo of consumos) {
+          await this.conexion!.run(`
+            INSERT INTO venta_consumos
+              (venta_id, compra_id, cantidad, costo_unitario_centavos)
+            VALUES (?, ?, ?, ?)
+          `, [ventaId, consumo.compraId, consumo.cantidad, consumo.costo], false);
+        }
       }
-      for (const consumo of consumos) {
-        await this.conexion!.run(`
-          INSERT INTO venta_consumos
-            (venta_id, compra_id, cantidad, costo_unitario_centavos)
-          VALUES (?, ?, ?, ?)
-        `, [ventaId, consumo.compraId, consumo.cantidad, consumo.costo], false);
-      }
+
       if (abonoInicialCentavos > 0) {
-        await this.conexion!.run(`
+        const abonoInsertado = await this.conexion!.run(`
           INSERT INTO abonos (cliente_id, importe_centavos, fecha, concepto)
           VALUES (?, ?, ?, 'Pago inicial')
         `, [clienteId, abonoInicialCentavos, fecha], false);
+        const abonoId = abonoInsertado.changes?.lastId;
+        if (
+          typeof abonoId !== 'number' ||
+          !Number.isSafeInteger(abonoId) ||
+          abonoId <= 0
+        ) {
+          throw new Error('No se pudo registrar el pago inicial.');
+        }
+        await this.conexion!.run(
+          'UPDATE operaciones_venta SET abono_id = ? WHERE id = ?',
+          [abonoId, operacionId],
+          false
+        );
       }
+
       await this.conexion!.commitTransaction();
     } catch (error) {
       await this.conexion!.rollbackTransaction();
       throw error;
     }
+
     await this.persistirWeb();
+    return operacionId;
   }
 
   async listarVentas(): Promise<Venta[]> {
@@ -399,13 +594,82 @@ export class DatabaseService {
         COALESCE((SELECT SUM(vc.cantidad * vc.costo_unitario_centavos)
           FROM venta_consumos vc WHERE vc.venta_id = v.id), 0)
           AS costo_total_centavos,
-        v.fecha
+        v.fecha, v.operacion_id
       FROM ventas v
       JOIN clientes c ON c.id = v.cliente_id
       JOIN productos p ON p.id = v.producto_id
       ORDER BY v.fecha DESC, v.id DESC
     `);
     return (r.values ?? []) as Venta[];
+  }
+
+  async listarOperacionesVenta(): Promise<OperacionVentaResumen[]> {
+    await this.iniciar();
+    const r = await this.conexion!.query(`
+      SELECT o.id, o.cliente_id, c.nombre AS cliente, o.fecha,
+        COALESCE((
+          SELECT SUM(v.cantidad * v.precio_unitario_centavos)
+          FROM ventas v WHERE v.operacion_id = o.id
+        ), 0) AS total_centavos,
+        COALESCE(a.importe_centavos, 0) AS pago_inicial_centavos,
+        COALESCE((
+          SELECT COUNT(*) FROM ventas v WHERE v.operacion_id = o.id
+        ), 0) AS lineas_count
+      FROM operaciones_venta o
+      JOIN clientes c ON c.id = o.cliente_id
+      LEFT JOIN abonos a ON a.id = o.abono_id
+      ORDER BY o.fecha DESC, o.id DESC
+    `);
+    return (r.values ?? []) as OperacionVentaResumen[];
+  }
+
+  async obtenerDetalleOperacion(
+    operacionId: number
+  ): Promise<OperacionVentaDetalle> {
+    await this.iniciar();
+    if (!Number.isSafeInteger(operacionId) || operacionId <= 0) {
+      throw new Error('Operación de venta no válida.');
+    }
+
+    const cabecera = await this.conexion!.query(`
+      SELECT o.id, o.cliente_id, c.nombre AS cliente, o.fecha,
+        COALESCE(a.importe_centavos, 0) AS pago_inicial_centavos
+      FROM operaciones_venta o
+      JOIN clientes c ON c.id = o.cliente_id
+      LEFT JOIN abonos a ON a.id = o.abono_id
+      WHERE o.id = ?
+    `, [operacionId]);
+    if (!cabecera.values?.length) {
+      throw new Error('La operación de venta no existe.');
+    }
+
+    const lineas = await this.conexion!.query(`
+      SELECT v.id, v.producto_id, p.nombre AS producto, p.mililitros,
+        v.cantidad, v.precio_unitario_centavos,
+        v.cantidad * v.precio_unitario_centavos AS total_centavos,
+        COALESCE((SELECT SUM(vc.cantidad * vc.costo_unitario_centavos)
+          FROM venta_consumos vc WHERE vc.venta_id = v.id), 0)
+          AS costo_total_centavos
+      FROM ventas v
+      JOIN productos p ON p.id = v.producto_id
+      WHERE v.operacion_id = ?
+      ORDER BY v.id ASC
+    `, [operacionId]);
+
+    const filas = (lineas.values ?? []) as LineaOperacionVenta[];
+    const total = filas.reduce(
+      (suma, linea) => suma + Number(linea.total_centavos), 0
+    );
+    const op = cabecera.values[0];
+    return {
+      id: Number(op.id),
+      cliente_id: Number(op.cliente_id),
+      cliente: String(op.cliente),
+      fecha: String(op.fecha),
+      total_centavos: total,
+      pago_inicial_centavos: Number(op.pago_inicial_centavos) || 0,
+      lineas: filas
+    };
   }
 
   async listarSaldosClientes(): Promise<SaldoCliente[]> {

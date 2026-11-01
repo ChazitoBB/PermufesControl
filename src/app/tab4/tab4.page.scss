@@ -26,3 +26,52 @@ input, select { display: block; box-sizing: border-box; width: 100%; min-width: 
 .fila strong { font-size: 13px; }
 .fila > strong { white-space: nowrap; }
 .fila small { display: block; color: var(--ion-color-medium); font-size: 11px; margin-top: 5px; overflow-wrap: anywhere; }
+h3 { font-size: 15px; margin: 18px 0 10px; }
+.bloque-carrito { margin-top: 8px; padding-top: 4px; }
+.secundario {
+  margin-top: 14px; padding: 12px; width: 100%; border: 1px solid var(--ion-color-primary);
+  border-radius: 12px; background: transparent; color: var(--ion-color-primary);
+  font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.secundario:disabled { opacity: 0.5; }
+.carrito { margin-top: 18px; }
+.linea-carrito {
+  padding: 12px 0; border-bottom: 1px solid var(--ion-color-step-150);
+}
+.linea-info strong { display: block; font-size: 14px; }
+.linea-info small { color: var(--ion-color-medium); font-size: 11px; }
+.linea-controles {
+  display: grid; grid-template-columns: auto 1fr auto 1fr auto auto;
+  gap: 8px; align-items: center; margin-top: 10px;
+}
+.linea-controles label { margin: 0; font-size: 11px; }
+.linea-controles input { padding: 8px; font-size: 13px; }
+.subtotal { font-size: 13px; font-weight: 700; white-space: nowrap; }
+.quitar {
+  padding: 8px 10px; border: none; border-radius: 8px;
+  background: var(--ion-color-danger); color: var(--ion-color-danger-contrast);
+  font-size: 12px; cursor: pointer;
+}
+.fila-boton {
+  width: 100%; background: none; border: none; text-align: left; cursor: pointer;
+  color: inherit; font: inherit; padding: 14px 0;
+}
+.operacion { border-bottom: 1px solid var(--ion-color-step-150); }
+.operacion .fila-boton { border-bottom: none; }
+.detalle-operacion {
+  margin: 0 0 14px; padding: 12px; border-radius: 12px;
+  background: var(--ion-background-color);
+}
+.detalle-linea {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid var(--ion-color-step-100);
+}
+.detalle-linea small {
+  display: block; color: var(--ion-color-medium); font-size: 11px; margin-top: 4px;
+}
+@media (max-width: 520px) {
+  .linea-controles {
+    grid-template-columns: 1fr 1fr;
+  }
+  .subtotal, .quitar { grid-column: span 1; }
+}

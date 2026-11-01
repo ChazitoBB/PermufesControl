@@ -7,7 +7,7 @@
     <div class="encabezado">
       <p class="subtitulo">MI NEGOCIO</p>
       <h1>Ventas y abonos</h1>
-      <p>Registra ventas y lleva una sola cuenta por cliente.</p>
+      <p>Registra ventas multiproducto y lleva una sola cuenta por cliente.</p>
     </div>
 
     <div class="pestanas">
@@ -36,27 +36,70 @@
           Deuda anterior: {{ formatoMXN(saldoCliente(clienteVentaId)) }}
         </p>
 
-        <label for="venta-perfume">Perfume</label>
-        <select id="venta-perfume" name="productoVentaId"
-          [ngModel]="productoVentaId" (ngModelChange)="seleccionarProducto($event)" required>
-          <option [ngValue]="null">Selecciona un perfume con existencias</option>
-          <option *ngFor="let p of disponibles" [ngValue]="p.id">
-            {{ p.nombre }} · {{ p.mililitros }} ml ({{ stock(p.id) }} disponibles)
-          </option>
-        </select>
+        <div class="bloque-carrito">
+          <h3>Agregar perfume al carrito</h3>
 
-        <div class="dos-columnas">
-          <div>
-            <label for="venta-cantidad">Cantidad</label>
-            <input id="venta-cantidad" type="number" min="1" step="1"
-              name="cantidadVenta" [(ngModel)]="cantidadVenta" required />
+          <label for="venta-perfume">Perfume</label>
+          <select id="venta-perfume" name="productoAgregarId"
+            [ngModel]="productoAgregarId"
+            (ngModelChange)="seleccionarProductoAgregar($event)">
+            <option [ngValue]="null">Selecciona un perfume con existencias</option>
+            <option *ngFor="let p of productosParaAgregar" [ngValue]="p.id">
+              {{ p.nombre }} · {{ p.mililitros }} ml
+              ({{ stockDisponiblePara(p.id) }} disponibles)
+            </option>
+          </select>
+
+          <div class="dos-columnas">
+            <div>
+              <label for="venta-cantidad">Cantidad</label>
+              <input id="venta-cantidad" type="number" min="1" step="1"
+                name="cantidadAgregar" [(ngModel)]="cantidadAgregar" />
+            </div>
+            <div>
+              <label for="venta-precio">Precio por unidad ($)</label>
+              <input id="venta-precio" type="text" inputmode="decimal"
+                name="precioAgregar" [(ngModel)]="precioAgregar" />
+            </div>
           </div>
-          <div>
-            <label for="venta-precio">Precio por unidad ($)</label>
-            <input id="venta-precio" type="text" inputmode="decimal"
-              name="precioVenta" [(ngModel)]="precioVenta" required />
+
+          <button type="button" class="secundario"
+            [disabled]="!productoAgregarId"
+            (click)="agregarAlCarrito()">
+            + Agregar al carrito
+          </button>
+        </div>
+
+        <div class="carrito" *ngIf="carrito.length > 0">
+          <h3>Carrito ({{ carrito.length }})</h3>
+          <div class="linea-carrito" *ngFor="let linea of carrito">
+            <div class="linea-info">
+              <strong>{{ linea.nombre }} · {{ linea.mililitros }} ml</strong>
+              <small>Stock: {{ stock(linea.productoId) }}</small>
+            </div>
+            <div class="linea-controles">
+              <label [attr.for]="'cant-' + linea.productoId">Cant.</label>
+              <input [id]="'cant-' + linea.productoId"
+                type="number" min="1" step="1"
+                [ngModel]="linea.cantidad"
+                [name]="'cant-' + linea.productoId"
+                (ngModelChange)="actualizarCantidad(linea, $event)" />
+              <label [attr.for]="'precio-' + linea.productoId">Precio $</label>
+              <input [id]="'precio-' + linea.productoId"
+                type="text" inputmode="decimal"
+                [(ngModel)]="linea.precioTexto"
+                [name]="'precio-' + linea.productoId" />
+              <span class="subtotal">{{ formatoMXN(subtotalLinea(linea)) }}</span>
+              <button type="button" class="quitar"
+                (click)="quitarDelCarrito(linea.productoId)">
+                Quitar
+              </button>
+            </div>
           </div>
         </div>
+        <p class="ayuda" *ngIf="carrito.length === 0">
+          Agrega uno o más perfumes al carrito para continuar.
+        </p>
 
         <label for="venta-pago">Pago inicial ($) · 0 si queda a deber</label>
         <input id="venta-pago" type="text" inputmode="decimal"
@@ -73,12 +116,15 @@
             <strong>{{ formatoMXN(totalCentavos - pagoCentavos) }}</strong></div>
         </div>
 
-        <button class="principal" type="submit" [disabled]="guardando || !clientes.length || !disponibles.length">
+        <button class="principal" type="submit"
+          [disabled]="guardando || !clientes.length || carrito.length === 0">
           {{ guardando ? 'Guardando...' : 'Guardar venta' }}
         </button>
       </form>
       <p class="ayuda" *ngIf="clientes.length === 0">Primero registra un cliente en Clientes.</p>
-      <p class="ayuda" *ngIf="disponibles.length === 0">Primero registra una compra en Inventario.</p>
+      <p class="ayuda" *ngIf="productosParaAgregar.length === 0 && carrito.length === 0">
+        Primero registra una compra en Inventario.
+      </p>
     </div>
 
     <div *ngIf="!cargando && vista === 'abono'">
@@ -113,21 +159,66 @@
       </div>
       <h2>Saldo global por cliente</h2>
       <div class="fila" *ngFor="let s of saldos">
-        <div><strong>{{ s.nombre }}</strong><small>Compras: {{ formatoMXN(s.total_ventas_centavos) }} · Pagos: {{ formatoMXN(s.total_abonos_centavos) }}</small></div>
+        <div>
+          <strong>{{ s.nombre }}</strong>
+          <small>Compras: {{ formatoMXN(s.total_ventas_centavos) }} · Pagos: {{ formatoMXN(s.total_abonos_centavos) }}</small>
+        </div>
         <strong>{{ formatoMXN(s.saldo_centavos) }}</strong>
       </div>
 
-      <h2>Ventas recientes</h2>
-      <p class="ayuda" *ngIf="ventas.length === 0">Todavía no hay ventas.</p>
-      <div class="fila" *ngFor="let v of ventas.slice(0, 10)">
-        <div><strong>{{ v.cliente }}</strong><small>{{ v.fecha }} · {{ v.cantidad }} × {{ v.producto }} ({{ v.mililitros }} ml)</small></div>
-        <strong>{{ formatoMXN(v.total_centavos) }}</strong>
+      <h2>Operaciones de venta</h2>
+      <p class="ayuda" *ngIf="operaciones.length === 0">Todavía no hay ventas.</p>
+      <div class="operacion" *ngFor="let o of operaciones">
+        <button type="button" class="fila fila-boton"
+          (click)="verDetalleOperacion(o.id)">
+          <div>
+            <strong>{{ o.cliente }}</strong>
+            <small>
+              {{ o.fecha }} · {{ o.lineas_count }} perfume(s)
+              · Pago inicial {{ formatoMXN(o.pago_inicial_centavos) }}
+            </small>
+          </div>
+          <strong>{{ formatoMXN(o.total_centavos) }}</strong>
+        </button>
+
+        <div class="detalle-operacion"
+          *ngIf="operacionDetalleId === o.id && detalleOperacion">
+          <p class="ayuda" *ngIf="cargandoDetalle">Cargando detalle...</p>
+          <div class="detalle-linea" *ngFor="let l of detalleOperacion.lineas">
+            <div>
+              <strong>{{ l.producto }} · {{ l.mililitros }} ml</strong>
+              <small>
+                {{ l.cantidad }} × {{ formatoMXN(l.precio_unitario_centavos) }}
+              </small>
+            </div>
+            <strong>{{ formatoMXN(l.total_centavos) }}</strong>
+          </div>
+          <div class="resumen">
+            <div>
+              <span>Total operación</span>
+              <strong>{{ formatoMXN(detalleOperacion.total_centavos) }}</strong>
+            </div>
+            <div>
+              <span>Pago inicial</span>
+              <strong>{{ formatoMXN(detalleOperacion.pago_inicial_centavos) }}</strong>
+            </div>
+            <div>
+              <span>Pendiente de esta venta</span>
+              <strong>{{ formatoMXN(
+                detalleOperacion.total_centavos - detalleOperacion.pago_inicial_centavos
+              ) }}</strong>
+            </div>
+          </div>
+        </div>
       </div>
 
       <h2>Abonos recientes</h2>
       <p class="ayuda" *ngIf="abonos.length === 0">Todavía no hay abonos.</p>
       <div class="fila" *ngFor="let a of abonos.slice(0, 10)">
-        <div><strong>{{ a.cliente }}</strong><small>{{ a.fecha }} · {{ a.concepto }}</small></div>
+        <div>
+          <strong>{{ a.cliente }}</strong>
+          <small>{{ a.fecha }} · {{ a.concepto }}</small>
+        </div>
         <strong class="positivo">{{ formatoMXN(a.importe_centavos) }}</strong>
       </div>
     </div>
