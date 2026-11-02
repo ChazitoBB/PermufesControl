@@ -85,6 +85,30 @@
   font-size: 14px;
 }
 
+.tarjeta-diezmo {
+  display: block;
+  margin-top: 12px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+
+  small {
+    display: block;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--ion-color-medium);
+  }
+
+  em {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    font-style: normal;
+    color: var(--ion-color-primary);
+    font-weight: 600;
+  }
+}
+
 .enlace-config {
   margin-top: 28px;
   text-align: center;

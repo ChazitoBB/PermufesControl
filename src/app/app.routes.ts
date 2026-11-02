@@ -10,4 +10,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./configuracion/configuracion.page').then((m) => m.ConfiguracionPage),
   },
+  {
+    path: 'diezmo-historial',
+    loadComponent: () =>
+      import('./diezmo-historial/diezmo-historial.page').then(
+        (m) => m.DiezmoHistorialPage
+      ),
+  },
 ];
