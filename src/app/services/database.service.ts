@@ -764,6 +764,30 @@ export class DatabaseService {
   }
 
   /**
+   * Lectura completa de tablas de negocio para respaldo.
+   * No modifica ni elimina registros.
+   */
+  async exportarTablasRespaldo(): Promise<Record<string, Record<string, unknown>[]>> {
+    await this.iniciar();
+    const tablas = [
+      'clientes',
+      'productos',
+      'compras',
+      'abonos',
+      'operaciones_venta',
+      'ventas',
+      'venta_consumos'
+    ] as const;
+
+    const resultado: Record<string, Record<string, unknown>[]> = {};
+    for (const tabla of tablas) {
+      const consulta = await this.conexion!.query(`SELECT * FROM ${tabla}`);
+      resultado[tabla] = (consulta.values ?? []) as Record<string, unknown>[];
+    }
+    return resultado;
+  }
+
+  /**
    * Resumen del dashboard.
    * Ventas/cobros del día usan la fecha de registro.
    * Cobros suman filas de abonos (pago inicial y abonos; sin duplicar).

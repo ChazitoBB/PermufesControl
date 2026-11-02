@@ -84,3 +84,14 @@
   color: var(--ion-color-medium);
   font-size: 14px;
 }
+
+.enlace-config {
+  margin-top: 28px;
+  text-align: center;
+
+  a {
+    color: var(--ion-color-medium);
+    font-size: 13px;
+    text-decoration: none;
+  }
+}

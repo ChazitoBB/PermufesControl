@@ -1,0 +1,131 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/tab1" text="Inicio"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Respaldos</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="contenedor">
+    <div class="encabezado">
+      <p class="subtitulo">CONFIGURACIÓN</p>
+      <h1>Respaldos SQLite</h1>
+      <p>Exporta una copia cifrada de tu negocio para guardarla fuera de la app.</p>
+    </div>
+
+    <div class="aviso">
+      <p>
+        Guarda el archivo en un lugar seguro (USB, nube personal o carpeta externa).
+        La contraseña no se almacena en la aplicación: si la olvidas, no podrás abrir el respaldo.
+      </p>
+      <p>
+        Último respaldo exitoso en este dispositivo:
+        <strong>{{ formatoFecha(ultimoRespaldoIso) }}</strong>
+      </p>
+    </div>
+
+    <p class="error" *ngIf="error">{{ error }}</p>
+    <p class="mensaje" *ngIf="mensaje">{{ mensaje }}</p>
+    <p *ngIf="ocupado">Procesando…</p>
+
+    <section class="bloque">
+      <h2>Crear respaldo</h2>
+      <label for="pass-export">Contraseña (mín. 8 caracteres)</label>
+      <input
+        id="pass-export"
+        type="password"
+        name="passwordExportar"
+        autocomplete="new-password"
+        [(ngModel)]="passwordExportar"
+        [disabled]="ocupado" />
+
+      <label for="pass-confirm">Confirmar contraseña</label>
+      <input
+        id="pass-confirm"
+        type="password"
+        name="passwordConfirmar"
+        autocomplete="new-password"
+        [(ngModel)]="passwordConfirmar"
+        [disabled]="ocupado" />
+
+      <button
+        type="button"
+        class="principal"
+        [disabled]="ocupado"
+        (click)="crearRespaldo()">
+        {{ ocupado ? 'Creando…' : 'Crear respaldo cifrado' }}
+      </button>
+    </section>
+
+    <section class="bloque">
+      <h2>Restaurar respaldo</h2>
+      <p class="ayuda">
+        Puedes seleccionar un archivo, ingresar la contraseña y ver una vista previa.
+        El reemplazo de la base de datos actual está deshabilitado hasta completar
+        un procedimiento de importación atómica con copia de seguridad previa.
+      </p>
+
+      <label for="archivo-respaldo">Archivo .pcbak</label>
+      <input
+        id="archivo-respaldo"
+        type="file"
+        accept=".pcbak,application/json,text/plain"
+        [disabled]="ocupado"
+        (change)="onArchivoSeleccionado($event)" />
+
+      <label for="pass-restore">Contraseña del respaldo</label>
+      <input
+        id="pass-restore"
+        type="password"
+        name="passwordRestaurar"
+        autocomplete="current-password"
+        [(ngModel)]="passwordRestaurar"
+        [disabled]="ocupado" />
+
+      <button
+        type="button"
+        class="secundario"
+        [disabled]="ocupado || !archivoSeleccionado"
+        (click)="validarRespaldo()">
+        Validar y previsualizar
+      </button>
+
+      <div class="preview" *ngIf="preview as p">
+        <h3>Vista previa</h3>
+        <p>Creado: {{ formatoFecha(p.createdAt) }}</p>
+        <ul>
+          <li>Clientes: {{ p.counts.clientes }}</li>
+          <li>Productos: {{ p.counts.productos }}</li>
+          <li>Compras: {{ p.counts.compras }}</li>
+          <li>Ventas: {{ p.counts.ventas }}</li>
+          <li>Operaciones: {{ p.counts.operaciones_venta }}</li>
+          <li>Consumos FIFO: {{ p.counts.venta_consumos }}</li>
+          <li>Abonos: {{ p.counts.abonos }}</li>
+        </ul>
+        <p class="advertencia" *ngFor="let a of p.advertencias">{{ a }}</p>
+        <p class="advertencia">
+          Si la restauración estuviera activa, reemplazaría todos los registros actuales.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        class="peligro"
+        [disabled]="true"
+        (click)="intentarRestaurar()">
+        Restaurar (deshabilitado)
+      </button>
+      <p class="ayuda" *ngIf="!restauracionAplicadaHabilitada">
+        Motivo: `importFromJson` con `overwrite` puede borrar la BD viva.
+        Primero necesitamos exportar el estado actual, importar en una base temporal,
+        validar relaciones/saldos y solo entonces sustituir de forma atómica.
+      </p>
+    </section>
+
+    <p class="enlace-inicio">
+      <a routerLink="/tabs/tab1">Volver al inicio</a>
+    </p>
+  </div>
+</ion-content>
