@@ -1,17 +1,1 @@
-.contenedor { padding: 16px; max-width: 640px; margin: 0 auto; }
-.bloque { margin: 18px 0; display: flex; flex-direction: column; gap: 8px; }
-label { font-size: 13px; color: var(--ion-color-medium); }
-input, select { padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
-.principal { padding: 12px; border: 0; border-radius: 8px; background: var(--ion-color-primary); color: #fff; font-weight: 600; }
-.error { color: var(--ion-color-danger); }
-.mensaje { color: green; }
-.ayuda { color: var(--ion-color-medium); font-size: 14px; }
-.card-encargo {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 12px 0; border-bottom: 1px solid #eee;
-}
-.acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-.acciones button, .acciones a {
-  font-size: 12px; padding: 6px 8px; border-radius: 6px; border: 0; background: #eee;
-  text-decoration: none; color: inherit;
-}
+/* Estilos de pantalla: el sistema visual vive en src/theme/ui.scss */

@@ -3,57 +3,110 @@
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/tabs/tab1" text="Inicio"></ion-back-button>
     </ion-buttons>
-    <ion-title>Ruleta (prueba)</ion-title>
+    <ion-title>Ruleta</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content>
   <div class="contenedor">
-    <h1>Ruleta de premios</h1>
-    <p class="aviso">
+    <div class="encabezado">
+      <p class="subtitulo">Promociones</p>
+      <h1>Ruleta de premios</h1>
+    </div>
+    <p class="nota-neutra">
       Solo para pruebas con datos ficticios. No activa promociones aleatorias
       automáticamente para clientes reales. Sectores angulares = probabilidades reales.
     </p>
-    <p class="error" *ngIf="error">{{ error }}</p>
-    <p class="mensaje" *ngIf="mensaje">{{ mensaje }}</p>
-
-    <label>Cliente de prueba</label>
-    <select [(ngModel)]="clienteId" name="clienteId">
+    <label for="ruleta-cliente">Cliente de prueba</label>
+    <select id="ruleta-cliente" [(ngModel)]="clienteId" name="clienteId"
+      (ngModelChange)="error = ''">
       <option [ngValue]="null">Selecciona</option>
       <option *ngFor="let c of clientes" [ngValue]="c.id">{{ c.nombre }}</option>
     </select>
+    <p class="ayuda" *ngIf="clienteId == null && !error">
+      Elige un cliente de prueba para girar.
+    </p>
+    <p class="error" *ngIf="error">{{ error }}</p>
+    <p class="mensaje" *ngIf="mensaje">
+      <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+      {{ mensaje }}
+    </p>
 
-    <div class="ruleta-wrap">
-      <div class="puntero"></div>
+    <div class="ruleta-wrap" [class.girando]="girando">
+      <div class="puntero" aria-hidden="true"></div>
       <div
         class="disco"
+        role="img"
+        aria-label="Ruleta de premios"
         [style.background]="conicGradient()"
         [style.transform]="'rotate(' + rotacionDeg + 'deg)'">
       </div>
+      <div class="eje" aria-hidden="true">PC</div>
     </div>
 
     <ul class="probs">
-      <li *ngFor="let p of premios">{{ p.etiqueta }} → {{ p.probabilidadPct }}%</li>
+      <li *ngFor="let p of premios; let i = index">
+        <i class="swatch" [style.background]="coloresRuleta[i % coloresRuleta.length]"></i>
+        <span>{{ p.etiqueta }} → {{ p.probabilidadPct }}%</span>
+      </li>
       <li><em>Total 100% (sectores angulares proporcionales)</em></li>
     </ul>
 
     <button type="button" class="principal" [disabled]="girando" (click)="girar()">
+      <ion-icon name="disc-outline" aria-hidden="true"></ion-icon>
       {{ girando ? 'Girando…' : 'Girar (prueba)' }}
     </button>
 
+    <div class="pc-overlay" *ngIf="premioAbierto && ultimoCodigo as uc"
+      (click)="premioAbierto = false">
+      <section class="pc-modal" role="dialog" aria-modal="true" aria-labelledby="premio-titulo"
+        (click)="$event.stopPropagation()">
+        <p class="pc-kicker">Premio</p>
+        <ion-icon name="gift-outline" aria-hidden="true"></ion-icon>
+        <h2 id="premio-titulo">{{ uc.etiqueta }}</h2>
+        <p class="ayuda">Código de un solo uso, sin vencimiento</p>
+        <p class="codigo-premio">{{ uc.codigo }}</p>
+        <a
+          class="btn-wa"
+          *ngIf="telefonoCliente(uc.cliente_id)"
+          [href]="'https://wa.me/' + telefonoCliente(uc.cliente_id) + '?text=' + textoWhatsApp(uc)"
+          target="_blank"
+          rel="noopener">
+          <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+          Compartir por WhatsApp
+        </a>
+        <p class="ayuda" *ngIf="!telefonoCliente(uc.cliente_id)">
+          Este cliente no tiene teléfono para WhatsApp.
+        </p>
+        <button
+          type="button"
+          class="secundario"
+          *ngIf="uc.tipo_premio === 'sorpresa'"
+          (click)="marcarSorpresa(uc)">
+          Marcar sorpresa entregada
+        </button>
+        <button type="button" class="btn-cancelar" (click)="premioAbierto = false">
+          Cerrar
+        </button>
+      </section>
+    </div>
+
     <section *ngIf="ultimoCodigo as uc" class="bloque">
       <h2>Último código</h2>
-      <p>{{ uc.codigo }} · {{ uc.etiqueta }}</p>
+      <p>{{ uc.etiqueta }}</p>
+      <p class="codigo-premio">{{ uc.codigo }}</p>
       <a
-        class="wa"
+        class="btn-wa"
         *ngIf="telefonoCliente(uc.cliente_id)"
         [href]="'https://wa.me/' + telefonoCliente(uc.cliente_id) + '?text=' + textoWhatsApp(uc)"
         target="_blank"
         rel="noopener">
+        <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
         Abrir WhatsApp (envío manual)
       </a>
       <button
         type="button"
+        class="secundario"
         *ngIf="uc.tipo_premio === 'sorpresa'"
         (click)="marcarSorpresa(uc)">
         Marcar sorpresa entregada
@@ -61,11 +114,18 @@
     </section>
 
     <section class="bloque">
-      <h2>Historial de códigos</h2>
+      <div class="tarjeta-top bloque-titulo">
+        <ion-icon name="ribbon-outline" aria-hidden="true"></ion-icon>
+        <h2>Historial de códigos</h2>
+      </div>
       <article *ngFor="let c of codigos" class="fila">
-        <strong>{{ c.codigo }}</strong>
-        <span>{{ c.cliente }} · {{ c.etiqueta }} · {{ c.estado }}</span>
+        <div>
+          <strong>{{ c.codigo }}</strong>
+          <small>{{ c.cliente }} · {{ c.etiqueta }}</small>
+        </div>
+        <span class="pc-badge" [ngClass]="'estado-' + c.estado">{{ c.estado }}</span>
       </article>
+      <p class="ayuda" *ngIf="listo && codigos.length === 0">Aún no hay códigos en esta prueba.</p>
     </section>
   </div>
 </ion-content>

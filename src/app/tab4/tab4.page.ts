@@ -1,7 +1,7 @@
 import { Component, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonHeader, IonToolbar, IonTitle, IonContent } from '@ionic/angular';
+import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   DatabaseService, Cliente, Producto, ExistenciaProducto,
   Abono, SaldoCliente, OperacionVentaResumen, OperacionVentaDetalle
@@ -22,7 +22,7 @@ interface LineaCarrito {
   standalone: true,
   templateUrl: 'tab4.page.html',
   styleUrls: ['tab4.page.scss'],
-  imports: [CommonModule, FormsModule, IonHeader, IonToolbar, IonTitle, IonContent]
+  imports: [CommonModule, FormsModule, IonHeader, IonToolbar, IonTitle, IonContent, IonIcon]
 })
 export class Tab4Page {
   vista: Vista = 'venta';

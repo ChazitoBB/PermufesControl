@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
-  IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton
+  IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar
 } from '@ionic/angular';
 import {
   DatabaseService, Producto, ExistenciaProducto
@@ -23,7 +23,7 @@ import {
   styleUrls: ['catalogo.page.scss'],
   imports: [
     CommonModule, FormsModule, RouterLink,
-    IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton
+    IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton, IonIcon
   ]
 })
 export class CatalogoPage {
@@ -54,6 +54,7 @@ export class CatalogoPage {
   fechaResurtir = this.hoy();
 
   ocupado = false;
+  listo = false;
   error = '';
   mensaje = '';
   categorias = CATEGORIAS_PRODUCTO;
@@ -77,6 +78,7 @@ export class CatalogoPage {
   private async recargar(): Promise<void> {
     this.productos = await this.database.listarProductos();
     this.existencias = await this.database.listarExistencias();
+    this.listo = true;
     this.cdr.markForCheck();
   }
 

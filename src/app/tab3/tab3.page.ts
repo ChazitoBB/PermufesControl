@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonHeader, IonToolbar, IonTitle, IonContent } from '@ionic/angular';
+import { IonContent, IonHeader, IonIcon, IonTitle, IonToolbar } from '@ionic/angular';
 import {
   DatabaseService,
   Producto,
@@ -16,7 +16,7 @@ import {
   styleUrls: ['tab3.page.scss'],
   imports: [
     CommonModule, FormsModule,
-    IonHeader, IonToolbar, IonTitle, IonContent
+    IonHeader, IonToolbar, IonTitle, IonContent, IonIcon
   ]
 })
 export class Tab3Page implements OnInit {

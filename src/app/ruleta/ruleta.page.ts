@@ -2,7 +2,7 @@ import { Component, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
-  IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton
+  IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar
 } from '@ionic/angular';
 import { Cliente, CodigoPremio, DatabaseService } from '../services/database.service';
 import {
@@ -21,7 +21,7 @@ import {
   styleUrls: ['ruleta.page.scss'],
   imports: [
     CommonModule, FormsModule,
-    IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton
+    IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton, IonIcon
   ]
 })
 export class RuletaPage {
@@ -33,10 +33,16 @@ export class RuletaPage {
   sectores = sectoresAngularesRuleta();
   rotacionDeg = 0;
   girando = false;
+  premioAbierto = false;
   ultimoPremio: PremioConfig | null = null;
   ultimoCodigo: CodigoPremio | null = null;
+  readonly coloresRuleta = [
+    '#8b6cff', '#e4c27a', '#2dd4bf', '#fb7185',
+    '#7dd3fc', '#f472b6', '#a3e635'
+  ];
   error = '';
   mensaje = '';
+  listo = false;
   /** Evita re-giro por recarga: se guarda el id de giro en sessionStorage. */
   giroSesionId: string | null = null;
 
@@ -49,17 +55,15 @@ export class RuletaPage {
     this.clientes = await this.database.listarClientes();
     this.codigos = await this.database.listarCodigosPremio();
     this.giroSesionId = sessionStorage.getItem('pc_ruleta_giro_sesion');
+    this.listo = true;
     this.cdr.markForCheck();
   }
 
   conicGradient(): string {
-    const colores = [
-      '#4caf50', '#2196f3', '#ff9800', '#9c27b0',
-      '#f44336', '#00bcd4', '#795548'
-    ];
     const parts: string[] = [];
     this.sectores.forEach((s, i) => {
-      parts.push(`${colores[i % colores.length]} ${s.inicioDeg}deg ${s.finDeg}deg`);
+      const color = this.coloresRuleta[i % this.coloresRuleta.length];
+      parts.push(`${color} ${s.inicioDeg}deg ${s.finDeg}deg`);
     });
     return `conic-gradient(${parts.join(', ')})`;
   }
@@ -108,6 +112,7 @@ export class RuletaPage {
       sessionStorage.setItem('pc_ruleta_giro_sesion', this.giroSesionId);
       this.ultimoPremio = premio;
       this.ultimoCodigo = codigo;
+      this.premioAbierto = true;
       this.codigos = await this.database.listarCodigosPremio();
       this.mensaje =
         `Premio: ${premio.etiqueta}. Código ${codigo.codigo} (sin vencimiento).`;

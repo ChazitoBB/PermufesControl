@@ -5,23 +5,38 @@
 <ion-content [fullscreen]="true">
   <div class="contenedor">
     <div class="encabezado">
-      <p class="subtitulo">MI NEGOCIO</p>
+      <p class="subtitulo">Mi negocio</p>
       <h1>Ventas y abonos</h1>
       <p>Registra ventas multiproducto y lleva una sola cuenta por cliente.</p>
     </div>
 
-    <div class="pestanas">
-      <button type="button" [class.activo]="vista === 'venta'"
-        (click)="cambiarVista('venta')">Nueva venta</button>
-      <button type="button" [class.activo]="vista === 'abono'"
-        (click)="cambiarVista('abono')">Abonar</button>
-      <button type="button" [class.activo]="vista === 'historial'"
-        (click)="cambiarVista('historial')">Historial</button>
+    <div class="pestanas" role="tablist" aria-label="Ventas">
+      <button type="button" role="tab" [class.activo]="vista === 'venta'"
+        (click)="cambiarVista('venta')">
+        <ion-icon name="cart-outline" aria-hidden="true"></ion-icon>
+        Nueva venta
+      </button>
+      <button type="button" role="tab" [class.activo]="vista === 'abono'"
+        (click)="cambiarVista('abono')">
+        <ion-icon name="wallet-outline" aria-hidden="true"></ion-icon>
+        Abonar
+      </button>
+      <button type="button" role="tab" [class.activo]="vista === 'historial'"
+        (click)="cambiarVista('historial')">
+        <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+        Historial
+      </button>
     </div>
 
-    <p *ngIf="cargando">Cargando datos...</p>
+    <div class="pc-loading" *ngIf="cargando">
+      <span class="pc-spinner" aria-hidden="true"></span>
+      <p>Cargando datos...</p>
+    </div>
     <p class="error" *ngIf="error">{{ error }}</p>
-    <p class="mensaje" *ngIf="mensaje">{{ mensaje }}</p>
+    <p class="mensaje" *ngIf="mensaje">
+      <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+      {{ mensaje }}
+    </p>
 
     <div *ngIf="!cargando && vista === 'venta'">
       <form class="formulario" (ngSubmit)="guardarVenta()">
@@ -66,7 +81,8 @@
           <button type="button" class="secundario"
             [disabled]="!productoAgregarId"
             (click)="agregarAlCarrito()">
-            + Agregar al carrito
+            <ion-icon name="add-outline" aria-hidden="true"></ion-icon>
+            Agregar al carrito
           </button>
         </div>
 
@@ -78,22 +94,28 @@
               <small>Stock: {{ stock(linea.productoId) }}</small>
             </div>
             <div class="linea-controles">
-              <label [attr.for]="'cant-' + linea.productoId">Cant.</label>
-              <input [id]="'cant-' + linea.productoId"
-                type="number" min="1" step="1"
-                [ngModel]="linea.cantidad"
-                [name]="'cant-' + linea.productoId"
-                (ngModelChange)="actualizarCantidad(linea, $event)" />
-              <label [attr.for]="'precio-' + linea.productoId">Precio $</label>
-              <input [id]="'precio-' + linea.productoId"
-                type="text" inputmode="decimal"
-                [(ngModel)]="linea.precioTexto"
-                [name]="'precio-' + linea.productoId" />
-              <span class="subtotal">{{ formatoMXN(subtotalLinea(linea)) }}</span>
-              <button type="button" class="quitar"
-                (click)="quitarDelCarrito(linea.productoId)">
-                Quitar
-              </button>
+              <div>
+                <label [attr.for]="'cant-' + linea.productoId">Cant.</label>
+                <input [id]="'cant-' + linea.productoId"
+                  type="number" min="1" step="1"
+                  [ngModel]="linea.cantidad"
+                  [name]="'cant-' + linea.productoId"
+                  (ngModelChange)="actualizarCantidad(linea, $event)" />
+              </div>
+              <div>
+                <label [attr.for]="'precio-' + linea.productoId">Precio $</label>
+                <input [id]="'precio-' + linea.productoId"
+                  type="text" inputmode="decimal"
+                  [(ngModel)]="linea.precioTexto"
+                  [name]="'precio-' + linea.productoId" />
+              </div>
+              <div class="linea-meta">
+                <span class="subtotal">{{ formatoMXN(subtotalLinea(linea)) }}</span>
+                <button type="button" class="quitar"
+                  (click)="quitarDelCarrito(linea.productoId)">
+                  Quitar
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -101,15 +123,21 @@
           Agrega uno o más perfumes al carrito para continuar.
         </p>
 
-        <label for="venta-codigo">Código de premio (opcional, 1 por venta)</label>
-        <input id="venta-codigo" type="text" name="codigoPremio"
-          [(ngModel)]="codigoPremio"
-          placeholder="PC-...."
-          autocomplete="off" />
-        <p class="ayuda">
-          El % aplica a una sola unidad. El 3x2 requiere ≥3 de 60&nbsp;ml.
-          El canje ocurre en la misma transacción SQLite que la venta.
-        </p>
+        <div class="pc-promo">
+          <div class="tarjeta-top">
+            <ion-icon name="pricetags-outline" aria-hidden="true"></ion-icon>
+            <h3>Código de premio</h3>
+          </div>
+          <label for="venta-codigo">Opcional, 1 por venta</label>
+          <input id="venta-codigo" type="text" name="codigoPremio"
+            [(ngModel)]="codigoPremio"
+            placeholder="PC-...."
+            autocomplete="off" />
+          <p class="ayuda">
+            El % aplica a una sola unidad. El 3x2 requiere ≥3 de 60&nbsp;ml.
+            El canje ocurre en la misma transacción SQLite que la venta.
+          </p>
+        </div>
 
         <label for="venta-pago">Pago inicial ($) · 0 si queda a deber</label>
         <input id="venta-pago" type="text" inputmode="decimal"
@@ -173,7 +201,10 @@
           <strong>{{ s.nombre }}</strong>
           <small>Compras: {{ formatoMXN(s.total_ventas_centavos) }} · Pagos: {{ formatoMXN(s.total_abonos_centavos) }}</small>
         </div>
-        <strong>{{ formatoMXN(s.saldo_centavos) }}</strong>
+        <strong [class.saldo-pendiente]="s.saldo_centavos > 0"
+                [class.cuenta-liquidada]="s.saldo_centavos <= 0">
+          {{ formatoMXN(s.saldo_centavos) }}
+        </strong>
       </div>
 
       <h2>Operaciones de venta</h2>
@@ -193,7 +224,10 @@
 
         <div class="detalle-operacion"
           *ngIf="operacionDetalleId === o.id && detalleOperacion">
-          <p class="ayuda" *ngIf="cargandoDetalle">Cargando detalle...</p>
+          <div class="pc-loading" *ngIf="cargandoDetalle">
+            <span class="pc-spinner" aria-hidden="true"></span>
+            <p>Cargando detalle...</p>
+          </div>
           <div class="detalle-linea" *ngFor="let l of detalleOperacion.lineas">
             <div>
               <strong>{{ l.producto }} · {{ l.mililitros }} ml</strong>

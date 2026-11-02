@@ -9,59 +9,84 @@
 
 <ion-content>
   <div class="contenedor">
-    <h1>Encargos de clientes</h1>
-    <p class="ayuda">
-      No generan venta, deuda ni descuento de inventario automáticamente.
-    </p>
+    <div class="encabezado">
+      <p class="subtitulo">Pedidos</p>
+      <h1>Encargos de clientes</h1>
+      <p class="ayuda">
+        No generan venta, deuda ni descuento de inventario automáticamente.
+      </p>
+    </div>
     <p class="error" *ngIf="error">{{ error }}</p>
-    <p class="mensaje" *ngIf="mensaje">{{ mensaje }}</p>
+    <p class="mensaje" *ngIf="mensaje">
+      <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+      {{ mensaje }}
+    </p>
 
-    <section class="bloque">
-      <h2>Nuevo encargo</h2>
-      <label>Cliente</label>
-      <select [(ngModel)]="clienteId" name="clienteId">
+    <section class="bloque" id="nuevo-encargo">
+      <div class="tarjeta-top bloque-titulo">
+        <ion-icon name="add-outline" aria-hidden="true"></ion-icon>
+        <h2>Nuevo encargo</h2>
+      </div>
+      <label for="encargo-cliente">Cliente</label>
+      <select id="encargo-cliente" [(ngModel)]="clienteId" name="clienteId">
         <option [ngValue]="null">Selecciona</option>
         <option *ngFor="let c of clientes" [ngValue]="c.id">{{ c.nombre }}</option>
       </select>
-      <label>Perfume</label>
-      <input [(ngModel)]="nombrePerfume" name="nombrePerfume" />
-      <label>Tamaño</label>
-      <select [(ngModel)]="mililitros" name="mililitros">
-        <option [ngValue]="60">60 ml</option>
-        <option [ngValue]="120">120 ml</option>
-      </select>
-      <label>Concentración</label>
-      <select [(ngModel)]="concentracion" name="concentracion">
+      <label for="encargo-perfume">Perfume</label>
+      <input id="encargo-perfume" [(ngModel)]="nombrePerfume" name="nombrePerfume" />
+      <div class="dos-columnas">
+        <div>
+          <label for="encargo-ml">Tamaño</label>
+          <select id="encargo-ml" [(ngModel)]="mililitros" name="mililitros">
+            <option [ngValue]="60">60 ml</option>
+            <option [ngValue]="120">120 ml</option>
+          </select>
+        </div>
+        <div>
+          <label for="encargo-piezas">Piezas</label>
+          <input id="encargo-piezas" type="number" min="1" [(ngModel)]="cantidad" name="cantidad" />
+        </div>
+      </div>
+      <label for="encargo-conc">Concentración</label>
+      <select id="encargo-conc" [(ngModel)]="concentracion" name="concentracion">
         <option *ngFor="let c of concentraciones" [value]="c">{{ c || '(vacía)' }}</option>
       </select>
-      <label>Piezas</label>
-      <input type="number" min="1" [(ngModel)]="cantidad" name="cantidad" />
-      <label>Fecha solicitud</label>
-      <input type="date" [(ngModel)]="fecha" name="fecha" />
-      <label>Notas</label>
-      <input [(ngModel)]="notas" name="notas" />
-      <button type="button" class="principal" [disabled]="ocupado" (click)="crear()">Guardar</button>
+      <label for="encargo-fecha">Fecha solicitud</label>
+      <input id="encargo-fecha" type="date" [(ngModel)]="fecha" name="fecha" />
+      <label for="encargo-notas">Notas</label>
+      <input id="encargo-notas" [(ngModel)]="notas" name="notas" />
+      <button type="button" class="principal" [disabled]="ocupado" (click)="crear()">
+        {{ ocupado ? 'Guardando...' : 'Guardar encargo' }}
+      </button>
     </section>
 
     <section class="bloque">
-      <h2>Lista para resurtir</h2>
-      <ul>
-        <li *ngFor="let r of listaResurtir">
-          {{ r.nombre }} · {{ r.mililitros }} ml · {{ r.piezas }} pza
-        </li>
-      </ul>
-      <p *ngIf="!listaResurtir.length">Sin encargos activos.</p>
+      <div class="tarjeta-top bloque-titulo">
+        <ion-icon name="bag-handle-outline" aria-hidden="true"></ion-icon>
+        <h2>Lista para resurtir</h2>
+      </div>
+      <div class="resurtir-item" *ngFor="let r of listaResurtir">
+        <span>{{ r.nombre }} · {{ r.mililitros }} ml</span>
+        <strong>{{ r.piezas }} pza</strong>
+      </div>
+      <p class="ayuda" *ngIf="!listaResurtir.length">Sin encargos activos.</p>
     </section>
 
-    <section class="bloque">
-      <h2>Encargos</h2>
+    <section>
+      <div class="lista-header">
+        <h2>Encargos</h2>
+        <span>{{ encargos.length }}</span>
+      </div>
       <article *ngFor="let e of encargos" class="card-encargo">
-        <strong>{{ e.nombre_perfume }}</strong>
-        <span>{{ e.cliente }} · {{ e.cantidad }} × {{ e.mililitros }} ml · {{ e.estado }}</span>
+        <div class="perfume-top">
+          <strong>{{ e.nombre_perfume }}</strong>
+          <span class="pc-badge" [ngClass]="'estado-' + e.estado">{{ e.estado }}</span>
+        </div>
+        <span>{{ e.cliente }} · {{ e.cantidad }} × {{ e.mililitros }} ml</span>
         <span>{{ e.fecha_solicitud }} · {{ e.notas || '—' }}</span>
         <div class="acciones">
           <button type="button" (click)="cambiarEstado(e, 'pedido')">Pedido</button>
-          <button type="button" (click)="marcarConseguidoConCompra(e)">Conseguido + compra</button>
+          <button type="button" class="ancho" (click)="marcarConseguidoConCompra(e)">Conseguido + compra</button>
           <button type="button" (click)="cambiarEstado(e, 'cancelado')">Cancelar</button>
           <a [routerLink]="['/tabs/tab4']"
              [queryParams]="{ encargoId: e.id, productoId: e.producto_id, clienteId: e.cliente_id }">
@@ -69,6 +94,12 @@
           </a>
         </div>
       </article>
+      <div class="vacio" *ngIf="listo && encargos.length === 0">
+        <ion-icon name="clipboard-outline" aria-hidden="true"></ion-icon>
+        <h3>Sin encargos</h3>
+        <p>Registra el primero en el formulario de arriba.</p>
+        <a class="secundario" href="#nuevo-encargo">Ir al formulario</a>
+      </div>
     </section>
   </div>
 </ion-content>

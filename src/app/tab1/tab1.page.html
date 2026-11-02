@@ -8,39 +8,60 @@
   <div class="contenedor">
 
     <div class="encabezado">
-      <p class="subtitulo">MI NEGOCIO</p>
+      <p class="subtitulo">Mi negocio</p>
       <h1>Resumen general</h1>
-      <p>Control de ventas, cobros e inventario</p>
+      <p>Ventas, cobros, inventario y diezmo en un solo vistazo.</p>
     </div>
 
-    <p *ngIf="cargando">Cargando indicadores...</p>
-    <p class="error" *ngIf="error">{{ error }}</p>
+    <div class="pc-loading" *ngIf="cargando">
+      <span class="pc-spinner" aria-hidden="true"></span>
+      <p>Cargando indicadores...</p>
+    </div>
+    <p class="error" *ngIf="error">
+      <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+      {{ error }}
+    </p>
 
     <ng-container *ngIf="!cargando && !error && resumen as r">
       <div class="tarjetas">
-        <div class="tarjeta">
-          <span>Ventas de hoy</span>
+        <div class="tarjeta tono-violeta">
+          <div class="tarjeta-top">
+            <ion-icon name="cash-outline" aria-hidden="true"></ion-icon>
+            <span>Ventas de hoy</span>
+          </div>
           <strong>{{ formatoMXN(r.ventas_hoy_centavos) }}</strong>
         </div>
 
-        <div class="tarjeta">
-          <span>Cobros de hoy</span>
+        <div class="tarjeta tono-cyan">
+          <div class="tarjeta-top">
+            <ion-icon name="wallet-outline" aria-hidden="true"></ion-icon>
+            <span>Cobros de hoy</span>
+          </div>
           <strong>{{ formatoMXN(r.cobros_hoy_centavos) }}</strong>
         </div>
 
-        <div class="tarjeta">
-          <span>Saldo total por cobrar</span>
+        <div class="tarjeta tono-amber">
+          <div class="tarjeta-top">
+            <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+            <span>Saldo por cobrar</span>
+          </div>
           <strong>{{ formatoMXN(r.saldo_por_cobrar_centavos) }}</strong>
         </div>
 
-        <div class="tarjeta">
-          <span>Inventario actual</span>
+        <div class="tarjeta tono-verde">
+          <div class="tarjeta-top">
+            <ion-icon name="cube-outline" aria-hidden="true"></ion-icon>
+            <span>Inventario actual</span>
+          </div>
           <strong>{{ textoInventario(r.inventario_unidades) }}</strong>
         </div>
       </div>
 
-      <a class="tarjeta tarjeta-diezmo" routerLink="/diezmo-historial">
-        <span>Diezmo de esta semana</span>
+      <a class="tarjeta tarjeta-diezmo tono-oro" routerLink="/diezmo-historial">
+        <div class="tarjeta-top">
+          <ion-icon name="ribbon-outline" aria-hidden="true"></ion-icon>
+          <span>Diezmo de esta semana</span>
+        </div>
         <strong>{{ formatoMXN(r.diezmo_semana_centavos) }}</strong>
         <small>
           Base: {{ formatoMXN(r.ventas_semana_centavos) }}
@@ -50,39 +71,57 @@
       </a>
 
       <div class="seccion">
-        <h2>Resumen de rentabilidad</h2>
-        <p>
-          Ganancia bruta de ventas (acumulada):
-          {{ formatoMXN(r.ganancia_bruta_ventas_centavos) }}
-        </p>
-        <p>
-          Ganancia potencial del inventario:
-          {{ formatoMXN(r.ganancia_potencial_inventario_centavos) }}
-        </p>
+        <div class="tarjeta-top seccion-titulo">
+          <ion-icon name="trending-up-outline" aria-hidden="true"></ion-icon>
+          <h2>Rentabilidad</h2>
+        </div>
+        <div class="resumen">
+          <div>
+            <span>Ganancia bruta de ventas</span>
+            <strong>{{ formatoMXN(r.ganancia_bruta_ventas_centavos) }}</strong>
+          </div>
+          <div>
+            <span>Ganancia potencial del inventario</span>
+            <strong>{{ formatoMXN(r.ganancia_potencial_inventario_centavos) }}</strong>
+          </div>
+        </div>
         <p class="nota">
           Las tarjetas superiores usan el día {{ r.fecha }}.
           La ganancia bruta acumula todas las ventas con costos FIFO.
-          El diezmo es el 10% del bruto de ventas de la semana (domingo a sábado, Ciudad de México).
+          El diezmo es el 10% de las ventas netas de la semana, después de descuentos
+          (domingo a sábado, Ciudad de México).
         </p>
       </div>
     </ng-container>
 
     <div class="vacio" *ngIf="!cargando && !error && !resumen">
+      <ion-icon name="layers-outline" aria-hidden="true"></ion-icon>
       <p>No hay datos de resumen disponibles.</p>
     </div>
 
-    <p class="enlace-config">
-      <a routerLink="/catalogo">Catálogo de perfumes</a>
-    </p>
-    <p class="enlace-config">
-      <a routerLink="/encargos">Encargos</a>
-    </p>
-    <p class="enlace-config">
-      <a routerLink="/ruleta">Ruleta de premios (prueba)</a>
-    </p>
-    <p class="enlace-config">
-      <a routerLink="/configuracion">Respaldos y configuración</a>
-    </p>
+    <h2 class="lista-header">Accesos</h2>
+    <nav class="accesos" aria-label="Accesos rápidos">
+      <a class="acceso" routerLink="/catalogo">
+        <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
+        <span>Catálogo</span>
+        <small>Buscar, filtrar y resurtir</small>
+      </a>
+      <a class="acceso" routerLink="/encargos">
+        <ion-icon name="clipboard-outline" aria-hidden="true"></ion-icon>
+        <span>Encargos</span>
+        <small>Pedidos pendientes</small>
+      </a>
+      <a class="acceso" routerLink="/ruleta">
+        <ion-icon name="disc-outline" aria-hidden="true"></ion-icon>
+        <span>Ruleta</span>
+        <small>Premios de prueba</small>
+      </a>
+      <a class="acceso" routerLink="/configuracion">
+        <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
+        <span>Respaldos</span>
+        <small>Exportar y restaurar</small>
+      </a>
+    </nav>
 
   </div>
 </ion-content>

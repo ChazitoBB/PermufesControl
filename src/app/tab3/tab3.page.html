@@ -7,21 +7,25 @@
 <ion-content [fullscreen]="true">
   <div class="contenedor">
     <div class="encabezado">
-      <p class="subtitulo">MI NEGOCIO</p>
+      <p class="subtitulo">Mi negocio</p>
       <h1>Mis perfumes</h1>
       <p>Administra tu catálogo y registra tus compras.</p>
     </div>
 
     <p class="error" *ngIf="errorCarga">{{ errorCarga }}</p>
-    <p *ngIf="cargando">Cargando inventario...</p>
+    <div class="pc-loading" *ngIf="cargando">
+      <span class="pc-spinner" aria-hidden="true"></span>
+      <p>Cargando inventario...</p>
+    </div>
 
     <button
-      *ngIf="!mostrarFormulario"
+      *ngIf="!mostrarFormulario && productos.length > 0"
       type="button"
       class="btn-principal"
       [disabled]="cargando || !!errorCarga"
       (click)="abrirFormulario()">
-      + Agregar perfume
+      <ion-icon name="add-outline" aria-hidden="true"></ion-icon>
+      Agregar perfume
     </button>
 
     <form *ngIf="mostrarFormulario" class="formulario" (ngSubmit)="guardarProducto()">
@@ -38,13 +42,18 @@
         <option [ngValue]="120">120 ml</option>
       </select>
 
-      <label for="costo">Costo de compra por unidad ($)</label>
-      <input id="costo" name="costo" type="text" inputmode="decimal"
-        placeholder="Ej. 180" [(ngModel)]="costo" required />
-
-      <label for="precio">Precio de venta por unidad ($)</label>
-      <input id="precio" name="precio" type="text" inputmode="decimal"
-        placeholder="Ej. 280" [(ngModel)]="precio" required />
+      <div class="dos-columnas">
+        <div>
+          <label for="costo">Costo por unidad ($)</label>
+          <input id="costo" name="costo" type="text" inputmode="decimal"
+            placeholder="Ej. 180" [(ngModel)]="costo" required />
+        </div>
+        <div>
+          <label for="precio">Precio de venta ($)</label>
+          <input id="precio" name="precio" type="text" inputmode="decimal"
+            placeholder="Ej. 280" [(ngModel)]="precio" required />
+        </div>
+      </div>
 
       <p class="error" *ngIf="error">{{ error }}</p>
       <button type="submit" class="btn-principal"
@@ -56,18 +65,23 @@
       </button>
     </form>
 
-    <p class="mensaje" *ngIf="mensaje">{{ mensaje }}</p>
+    <p class="mensaje" *ngIf="mensaje">
+      <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+      {{ mensaje }}
+    </p>
 
-    <!-- Este resumen refleja el inventario que queda después de las ventas. -->
     <div class="resumen-inventario" *ngIf="!cargando && !errorCarga">
-      <h2>Inventario disponible</h2>
+      <div class="tarjeta-top">
+        <ion-icon name="layers-outline" aria-hidden="true"></ion-icon>
+        <h2>Inventario disponible</h2>
+      </div>
       <div class="resumen-grid">
         <div>
           <small>Unidades disponibles</small>
           <strong>{{ totalUnidades }}</strong>
         </div>
         <div>
-          <small>Valor de inventario al costo</small>
+          <small>Valor al costo</small>
           <strong>{{ formatoMXN(inversionTotal) }}</strong>
         </div>
         <div>
@@ -75,7 +89,7 @@
           <strong>{{ formatoMXN(ingresoPotencial) }}</strong>
         </div>
         <div>
-          <small>Ganancia bruta potencial</small>
+          <small>Ganancia potencial</small>
           <strong class="positivo">{{ formatoMXN(gananciaPotencial) }}</strong>
         </div>
       </div>
@@ -93,8 +107,15 @@
     </div>
 
     <div class="vacio" *ngIf="!cargando && !errorCarga && productos.length === 0">
-      <h3>Tu catálogo está vacío</h3>
-      <p>Registra tu primer perfume para comenzar.</p>
+      <ion-icon name="cube-outline" aria-hidden="true"></ion-icon>
+      <h3>Sin perfumes</h3>
+      <p>Agrega el primero para registrar compras.</p>
+      <button type="button" class="btn-principal" *ngIf="!mostrarFormulario"
+        [disabled]="!!errorCarga"
+        (click)="abrirFormulario()">
+        <ion-icon name="add-outline" aria-hidden="true"></ion-icon>
+        Agregar perfume
+      </button>
     </div>
 
     <div class="producto-card" *ngFor="let producto of productos">
@@ -105,7 +126,7 @@
 
       <div class="precios">
         <div>
-          <small>Costo de compra de referencia</small>
+          <small>Costo de referencia</small>
           <strong>{{ formatoMXN(producto.costo_referencia_centavos) }}</strong>
         </div>
         <div>
@@ -115,7 +136,7 @@
       </div>
 
       <div class="ganancia">
-        <span>Ganancia bruta estimada por unidad</span>
+        <span>Ganancia estimada por unidad</span>
         <strong>
           {{ formatoMXN(producto.precio_venta_centavos - producto.costo_referencia_centavos) }}
         </strong>
@@ -123,13 +144,17 @@
 
       <div class="existencias-producto">
         <span>Unidades disponibles</span>
-        <strong>{{ obtenerUnidades(producto.id) }}</strong>
+        <strong [class.positivo]="obtenerUnidades(producto.id) > 0"
+                [class.saldo-pendiente]="obtenerUnidades(producto.id) === 0">
+          {{ obtenerUnidades(producto.id) }}
+        </strong>
       </div>
 
       <button type="button" class="btn-compra"
         [disabled]="guardandoCompra || !!errorCarga"
         (click)="abrirCompra(producto)">
-        + Registrar compra
+        <ion-icon name="refresh-outline" aria-hidden="true"></ion-icon>
+        Registrar compra
       </button>
 
       <form *ngIf="productoCompra?.id === producto.id"

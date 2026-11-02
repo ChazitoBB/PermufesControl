@@ -9,92 +9,154 @@
 
 <ion-content>
   <div class="contenedor">
-    <h1>Catálogo de perfumes</h1>
-    <p class="ayuda">Busca, filtra y resurtir sin duplicar productos. Sin existencias también aparecen.</p>
+    <div class="encabezado">
+      <p class="subtitulo">Inventario</p>
+      <h1>Catálogo de perfumes</h1>
+      <p class="ayuda">Busca, filtra y resurtir sin duplicar productos. Sin existencias también aparecen.</p>
+    </div>
 
     <p class="error" *ngIf="error">{{ error }}</p>
-    <p class="mensaje" *ngIf="mensaje">{{ mensaje }}</p>
+    <p class="mensaje" *ngIf="mensaje">
+      <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+      {{ mensaje }}
+    </p>
 
     <section class="bloque">
-      <label>Buscar por nombre</label>
-      <input [(ngModel)]="filtroNombre" name="filtroNombre" />
-      <label>Categoría</label>
-      <select [(ngModel)]="filtroCategoria" name="filtroCategoria">
-        <option value="">Todas</option>
-        <option *ngFor="let c of categorias" [value]="c">{{ etiquetaCategoria(c) }}</option>
-      </select>
-      <label>Tamaño</label>
-      <select [(ngModel)]="filtroMl" name="filtroMl">
-        <option value="">Todos</option>
-        <option [ngValue]="60">60 ml</option>
-        <option [ngValue]="120">120 ml</option>
-      </select>
-      <label>Concentración</label>
-      <select [(ngModel)]="filtroConcentracion" name="filtroConcentracion">
-        <option value="">Todas</option>
-        <option *ngFor="let c of concentraciones" [value]="c">{{ c || '(vacía)' }}</option>
-      </select>
+      <label for="filtroNombre">Buscar por nombre</label>
+      <div class="buscador">
+        <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
+        <input id="filtroNombre" [(ngModel)]="filtroNombre" name="filtroNombre"
+          placeholder="Nombre del perfume" />
+      </div>
+
+      <span class="pc-kicker">Categoría</span>
+      <div class="pc-chips" role="tablist" aria-label="Categoría">
+        <button type="button" class="pc-chip" [class.activo]="filtroCategoria === ''"
+          (click)="filtroCategoria = ''">Todas</button>
+        <button type="button" class="pc-chip" *ngFor="let c of categorias"
+          [class.activo]="filtroCategoria === c"
+          (click)="filtroCategoria = c">
+          {{ etiquetaCategoria(c) }}
+        </button>
+      </div>
+
+      <div class="filtros-dobles">
+        <div>
+          <label for="filtroMl">Tamaño</label>
+          <select id="filtroMl" [(ngModel)]="filtroMl" name="filtroMl">
+            <option value="">Todos</option>
+            <option [ngValue]="60">60 ml</option>
+            <option [ngValue]="120">120 ml</option>
+          </select>
+        </div>
+        <div>
+          <label for="filtroConcentracion">Concentración</label>
+          <select id="filtroConcentracion" [(ngModel)]="filtroConcentracion" name="filtroConcentracion">
+            <option value="">Todas</option>
+            <option *ngFor="let c of concentraciones" [value]="c">{{ c || '(vacía)' }}</option>
+          </select>
+        </div>
+      </div>
     </section>
 
-    <button type="button" class="principal" (click)="mostrarAlta = !mostrarAlta">
+    <button type="button" class="principal" *ngIf="productos.length > 0 || mostrarAlta" (click)="mostrarAlta = !mostrarAlta">
+      <ion-icon [name]="mostrarAlta ? 'close-outline' : 'add-outline'" aria-hidden="true"></ion-icon>
       {{ mostrarAlta ? 'Cerrar alta' : 'Alta rápida de perfume' }}
     </button>
 
     <section class="bloque" *ngIf="mostrarAlta">
       <h2>Nuevo perfume + compra inicial</h2>
-      <label>Nombre</label>
-      <input [(ngModel)]="nombre" name="nombre" />
-      <label>Categoría</label>
-      <select [(ngModel)]="categoria" name="categoria" (ngModelChange)="alCambiarCategoria()">
+      <label for="alta-nombre">Nombre</label>
+      <input id="alta-nombre" [(ngModel)]="nombre" name="nombre" />
+      <label for="alta-categoria">Categoría</label>
+      <select id="alta-categoria" [(ngModel)]="categoria" name="categoria" (ngModelChange)="alCambiarCategoria()">
         <option *ngFor="let c of categorias" [value]="c">{{ etiquetaCategoria(c) }}</option>
       </select>
-      <label>Piezas iniciales</label>
-      <input type="number" min="1" [(ngModel)]="piezas" name="piezas" />
-      <label>Fecha</label>
-      <input type="date" [(ngModel)]="fecha" name="fecha" />
+      <div class="dos-columnas">
+        <div>
+          <label for="alta-piezas">Piezas iniciales</label>
+          <input id="alta-piezas" type="number" min="1" [(ngModel)]="piezas" name="piezas" />
+        </div>
+        <div>
+          <label for="alta-fecha">Fecha</label>
+          <input id="alta-fecha" type="date" [(ngModel)]="fecha" name="fecha" />
+        </div>
+      </div>
       <button type="button" class="secundario" (click)="mostrarAvanzado = !mostrarAvanzado">
         {{ mostrarAvanzado ? 'Ocultar' : 'Mostrar' }} tamaño / concentración / costos
       </button>
       <ng-container *ngIf="mostrarAvanzado">
-        <label>Tamaño (ml)</label>
-        <select [(ngModel)]="mililitros" name="mililitros">
+        <label for="alta-ml">Tamaño (ml)</label>
+        <select id="alta-ml" [(ngModel)]="mililitros" name="mililitros">
           <option [ngValue]="60">60</option>
           <option [ngValue]="120">120</option>
         </select>
-        <label>Concentración</label>
-        <select [(ngModel)]="concentracion" name="concentracion">
+        <label for="alta-conc">Concentración</label>
+        <select id="alta-conc" [(ngModel)]="concentracion" name="concentracion">
           <option *ngFor="let c of concentraciones" [value]="c">{{ c || '(vacía)' }}</option>
         </select>
-        <label>Costo unitario</label>
-        <input [(ngModel)]="costo" name="costo" />
-        <label>Precio venta</label>
-        <input [(ngModel)]="precio" name="precio" />
+        <label for="alta-costo">Costo unitario</label>
+        <input id="alta-costo" [(ngModel)]="costo" name="costo" />
+        <label for="alta-precio">Precio venta</label>
+        <input id="alta-precio" [(ngModel)]="precio" name="precio" />
       </ng-container>
       <button type="button" class="principal" [disabled]="ocupado" (click)="crearPerfume()">
-        Guardar perfume
+        {{ ocupado ? 'Guardando...' : 'Guardar perfume' }}
       </button>
     </section>
 
     <section class="bloque" *ngIf="productoResurtir as pr">
       <h2>Resurtir: {{ pr.nombre }}</h2>
-      <label>Piezas</label>
-      <input type="number" min="1" [(ngModel)]="piezasResurtir" name="piezasResurtir" />
-      <label>Costo unitario</label>
-      <input [(ngModel)]="costoResurtir" name="costoResurtir" />
-      <label>Fecha</label>
-      <input type="date" [(ngModel)]="fechaResurtir" name="fechaResurtir" />
+      <label for="resurtir-piezas">Piezas</label>
+      <input id="resurtir-piezas" type="number" min="1" [(ngModel)]="piezasResurtir" name="piezasResurtir" />
+      <label for="resurtir-costo">Costo unitario</label>
+      <input id="resurtir-costo" [(ngModel)]="costoResurtir" name="costoResurtir" />
+      <label for="resurtir-fecha">Fecha</label>
+      <input id="resurtir-fecha" type="date" [(ngModel)]="fechaResurtir" name="fechaResurtir" />
       <button type="button" class="principal" [disabled]="ocupado" (click)="confirmarResurtir()">Confirmar compra</button>
       <button type="button" class="secundario" (click)="productoResurtir = null">Cancelar</button>
     </section>
 
-    <ul class="lista">
-      <li *ngFor="let p of filtrados">
+    <div class="lista-header">
+      <h2>Resultados</h2>
+      <span>{{ filtrados.length }}</span>
+    </div>
+
+    <div class="vacio" *ngIf="listo && productos.length === 0">
+      <ion-icon name="color-palette-outline" aria-hidden="true"></ion-icon>
+      <h3>Catálogo vacío</h3>
+      <p>Da de alta un perfume para empezar a resurtir.</p>
+      <button type="button" class="principal" *ngIf="!mostrarAlta" (click)="mostrarAlta = true">
+        <ion-icon name="add-outline" aria-hidden="true"></ion-icon>
+        Alta rápida de perfume
+      </button>
+    </div>
+
+    <div class="vacio" *ngIf="listo && productos.length > 0 && filtrados.length === 0">
+      <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
+      <h3>Sin resultados</h3>
+      <p>Ningún perfume coincide con ese filtro.</p>
+      <button type="button" class="secundario"
+        (click)="filtroNombre = ''; filtroCategoria = ''; filtroMl = ''; filtroConcentracion = ''">
+        Limpiar filtros
+      </button>
+    </div>
+
+    <article class="producto-card perfume" *ngFor="let p of filtrados">
+      <div class="perfume-top">
         <strong>{{ p.nombre }}</strong>
-        <span>{{ etiquetaCategoria(p.categoria) }} · {{ p.mililitros }} ml · {{ p.concentracion || '—' }}</span>
-        <span>Stock: {{ unidadesDe(p.id) }} · {{ formatoMXN(p.precio_venta_centavos) }}</span>
-        <button type="button" class="secundario" (click)="abrirResurtir(p)">Comprar más</button>
-      </li>
-    </ul>
+        <span class="pc-badge" [class.pc-badge-ok]="unidadesDe(p.id) > 0"
+          [class.pc-badge-warn]="unidadesDe(p.id) === 0">
+          {{ unidadesDe(p.id) }} uds.
+        </span>
+      </div>
+      <span>{{ etiquetaCategoria(p.categoria) }} · {{ p.mililitros }} ml · {{ p.concentracion || '—' }}</span>
+      <span>{{ formatoMXN(p.precio_venta_centavos) }}</span>
+      <button type="button" class="secundario" (click)="abrirResurtir(p)">
+        <ion-icon name="refresh-outline" aria-hidden="true"></ion-icon>
+        Comprar más
+      </button>
+    </article>
 
     <p class="enlace-inicio"><a routerLink="/tabs/tab3">Ir a Inventario</a></p>
   </div>

@@ -10,15 +10,18 @@
 <ion-content [fullscreen]="true">
   <div class="contenedor">
     <div class="encabezado">
-      <p class="subtitulo">DIEZMO</p>
+      <p class="subtitulo">Diezmo</p>
       <h1>Historial semanal</h1>
       <p>
         Semanas de domingo a sábado (hora de la Ciudad de México).
-        El 10% se calcula sobre el bruto de las ventas, no sobre los cobros.
+        El 10% se calcula sobre las ventas netas, después de descuentos, no sobre los cobros.
       </p>
     </div>
 
-    <p *ngIf="cargando">Cargando historial...</p>
+    <div class="pc-loading" *ngIf="cargando">
+      <span class="pc-spinner" aria-hidden="true"></span>
+      <p>Cargando historial...</p>
+    </div>
     <p class="error" *ngIf="error">{{ error }}</p>
 
     <div class="vacio" *ngIf="!cargando && !error && semanas.length === 0">
@@ -28,7 +31,10 @@
     <div class="semana" *ngFor="let s of semanas" [class.actual]="s.es_actual">
       <div class="semana-cabecera">
         <strong>{{ formatoRango(s.inicio, s.fin) }}</strong>
-        <span class="etiqueta" *ngIf="s.es_actual">Esta semana</span>
+        <span class="etiqueta" *ngIf="s.es_actual">
+          <ion-icon name="star-outline" aria-hidden="true"></ion-icon>
+          Esta semana
+        </span>
       </div>
       <div class="fila">
         <span>Total vendido</span>

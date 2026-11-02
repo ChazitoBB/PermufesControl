@@ -2,12 +2,13 @@ import { Component, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
+  IonBackButton,
   IonButtons,
-  IonBackButton
+  IonContent,
+  IonHeader,
+  IonIcon,
+  IonTitle,
+  IonToolbar
 } from '@ionic/angular';
 import {
   DatabaseService,
@@ -22,12 +23,13 @@ import {
   imports: [
     CommonModule,
     RouterLink,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonContent,
+    IonBackButton,
     IonButtons,
-    IonBackButton
+    IonContent,
+    IonHeader,
+    IonIcon,
+    IonTitle,
+    IonToolbar
   ]
 })
 export class DiezmoHistorialPage {

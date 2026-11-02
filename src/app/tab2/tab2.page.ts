@@ -3,10 +3,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import {
+  IonContent,
   IonHeader,
-  IonToolbar,
+  IonIcon,
   IonTitle,
-  IonContent
+  IonToolbar
 } from '@ionic/angular';
 
 import {
@@ -26,7 +27,8 @@ import {
     IonHeader,
     IonToolbar,
     IonTitle,
-    IonContent
+    IonContent,
+    IonIcon
   ]
 })
 export class Tab2Page {

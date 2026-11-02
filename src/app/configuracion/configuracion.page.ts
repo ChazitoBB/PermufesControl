@@ -3,12 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonContent,
+  IonBackButton,
   IonButtons,
-  IonBackButton
+  IonContent,
+  IonHeader,
+  IonIcon,
+  IonTitle,
+  IonToolbar
 } from '@ionic/angular';
 import { BackupService } from '../services/backup.service';
 import type { RespaldoPayload, VistaPreviaRespaldo } from '../services/backup.types';
@@ -22,12 +23,13 @@ import type { RespaldoPayload, VistaPreviaRespaldo } from '../services/backup.ty
     CommonModule,
     FormsModule,
     RouterLink,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
-    IonContent,
+    IonBackButton,
     IonButtons,
-    IonBackButton
+    IonContent,
+    IonHeader,
+    IonIcon,
+    IonTitle,
+    IonToolbar
   ]
 })
 export class ConfiguracionPage implements OnInit {

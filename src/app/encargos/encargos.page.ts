@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
-  IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton
+  IonBackButton, IonButtons, IonContent, IonHeader, IonIcon, IonTitle, IonToolbar
 } from '@ionic/angular';
 import {
   Cliente, DatabaseService, Encargo, EstadoEncargo, Producto
@@ -17,7 +17,7 @@ import { CONCENTRACIONES, DEFAULTS_PERFUME_ESTANDAR } from '../services/catalogo
   styleUrls: ['encargos.page.scss'],
   imports: [
     CommonModule, FormsModule, RouterLink,
-    IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton
+    IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonBackButton, IonIcon
   ]
 })
 export class EncargosPage {
@@ -35,6 +35,7 @@ export class EncargosPage {
 
   concentraciones = CONCENTRACIONES;
   ocupado = false;
+  listo = false;
   error = '';
   mensaje = '';
 
@@ -52,6 +53,7 @@ export class EncargosPage {
     this.clientes = await this.database.listarClientes();
     this.productos = await this.database.listarProductos();
     this.encargos = await this.database.listarEncargos();
+    this.listo = true;
     this.cdr.markForCheck();
   }
 

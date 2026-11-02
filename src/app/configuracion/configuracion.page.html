@@ -10,7 +10,7 @@
 <ion-content [fullscreen]="true">
   <div class="contenedor">
     <div class="encabezado">
-      <p class="subtitulo">CONFIGURACIÓN</p>
+      <p class="subtitulo">Configuración</p>
       <h1>Respaldos SQLite</h1>
       <p>Exporta una copia cifrada de tu negocio para guardarla fuera de la app.</p>
     </div>
@@ -28,10 +28,17 @@
 
     <p class="error" *ngIf="error">{{ error }}</p>
     <p class="mensaje" *ngIf="mensaje">{{ mensaje }}</p>
-    <p *ngIf="ocupado">Procesando…</p>
+    <div class="pc-loading" *ngIf="ocupado">
+      <span class="pc-spinner" aria-hidden="true"></span>
+      <p>Procesando…</p>
+    </div>
 
     <section class="bloque">
-      <h2>Crear respaldo</h2>
+      <p class="paso">Paso 1 · Exportar</p>
+      <div class="tarjeta-top bloque-titulo">
+        <ion-icon name="cloud-upload-outline" aria-hidden="true"></ion-icon>
+        <h2>Crear respaldo</h2>
+      </div>
       <label for="pass-export">Contraseña (mín. 8 caracteres)</label>
       <input
         id="pass-export"
@@ -60,7 +67,11 @@
     </section>
 
     <section class="bloque">
-      <h2>Restaurar respaldo</h2>
+      <p class="paso">Paso 2 · Validar y restaurar</p>
+      <div class="tarjeta-top bloque-titulo">
+        <ion-icon name="download-outline" aria-hidden="true"></ion-icon>
+        <h2>Restaurar respaldo</h2>
+      </div>
       <p class="ayuda" *ngIf="restauracionAplicadaHabilitada">
         Flujo seguro: valida el archivo → genera copia PRE-RESTORE del estado actual →
         verifica en base temporal → aplica en una sola transacción (rollback si falla).
@@ -89,13 +100,14 @@
         [(ngModel)]="passwordRestaurar"
         [disabled]="ocupado" />
 
-      <button
-        type="button"
-        class="secundario"
-        [disabled]="ocupado || !archivoSeleccionado"
-        (click)="validarRespaldo()">
-        Validar y previsualizar
-      </button>
+        <button
+          type="button"
+          class="secundario"
+          [disabled]="ocupado || !archivoSeleccionado"
+          (click)="validarRespaldo()">
+          <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
+          Validar y previsualizar
+        </button>
 
       <div class="preview" *ngIf="preview as p">
         <h3>Vista previa</h3>
@@ -137,6 +149,7 @@
         </ng-container>
       </div>
 
+      <p class="paso">Paso 3 · Aplicar</p>
       <button
         type="button"
         class="peligro"

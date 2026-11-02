@@ -1,18 +1,1 @@
-.contenedor { padding: 16px; max-width: 640px; margin: 0 auto; }
-.bloque { margin: 16px 0; display: flex; flex-direction: column; gap: 8px; }
-label { font-size: 13px; color: var(--ion-color-medium); }
-input, select { padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
-.principal, .secundario {
-  margin-top: 8px; padding: 12px; border: 0; border-radius: 8px; font-weight: 600;
-}
-.principal { background: var(--ion-color-primary); color: #fff; }
-.secundario { background: #eee; }
-.error { color: var(--ion-color-danger); }
-.mensaje { color: var(--ion-color-success, green); }
-.lista { list-style: none; padding: 0; }
-.lista li {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 12px 0; border-bottom: 1px solid #eee;
-}
-.ayuda { color: var(--ion-color-medium); font-size: 14px; }
-.enlace-inicio { margin-top: 24px; }
+/* Estilos de pantalla: el sistema visual vive en src/theme/ui.scss */

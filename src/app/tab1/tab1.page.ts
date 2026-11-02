@@ -2,10 +2,11 @@ import { Component, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
+  IonContent,
   IonHeader,
-  IonToolbar,
+  IonIcon,
   IonTitle,
-  IonContent
+  IonToolbar
 } from '@ionic/angular';
 import {
   DatabaseService,
@@ -23,7 +24,8 @@ import {
     IonHeader,
     IonToolbar,
     IonTitle,
-    IonContent
+    IonContent,
+    IonIcon
   ],
 })
 export class Tab1Page {
