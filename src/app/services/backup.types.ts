@@ -4,7 +4,8 @@ import {
   BACKUP_PAYLOAD_MAGIC
 } from './backup-crypto';
 
-export const TABLAS_RESPALDO = [
+/** Tablas v1 (compatibilidad con respaldos anteriores). */
+export const TABLAS_RESPALDO_V1 = [
   'clientes',
   'productos',
   'compras',
@@ -14,25 +15,32 @@ export const TABLAS_RESPALDO = [
   'venta_consumos'
 ] as const;
 
+/** Tablas nuevas v2 (catálogo/encargos/promos). */
+export const TABLAS_RESPALDO_V2 = [
+  'encargos',
+  'promocion_codigos',
+  'promocion_canjes',
+  'ruleta_giros'
+] as const;
+
+export const TABLAS_RESPALDO = [
+  ...TABLAS_RESPALDO_V1,
+  ...TABLAS_RESPALDO_V2
+] as const;
+
 export type NombreTablaRespaldo = (typeof TABLAS_RESPALDO)[number];
 
 export type TablasRespaldo = {
   [K in NombreTablaRespaldo]: Record<string, unknown>[];
 };
 
-export interface ConteosRespaldo {
-  clientes: number;
-  productos: number;
-  compras: number;
-  abonos: number;
-  operaciones_venta: number;
-  ventas: number;
-  venta_consumos: number;
-}
+export type ConteosRespaldo = {
+  [K in NombreTablaRespaldo]: number;
+};
 
 export interface RespaldoPayload {
   magic: typeof BACKUP_PAYLOAD_MAGIC;
-  formatVersion: typeof BACKUP_FORMAT_VERSION;
+  formatVersion: number;
   app: typeof BACKUP_APP_ID;
   createdAt: string;
   databaseName: 'perfumescontrol';
@@ -46,4 +54,21 @@ export interface VistaPreviaRespaldo {
   counts: ConteosRespaldo;
   valido: boolean;
   advertencias: string[];
+}
+
+/** Completa tablas v2 vacías al leer respaldos v1. */
+export function normalizarPayloadRespaldo(
+  payload: RespaldoPayload
+): RespaldoPayload {
+  const tables = { ...payload.tables } as TablasRespaldo;
+  const counts = { ...payload.counts } as ConteosRespaldo;
+  for (const nombre of TABLAS_RESPALDO) {
+    if (!Array.isArray(tables[nombre])) {
+      tables[nombre] = [];
+    }
+    if (typeof counts[nombre] !== 'number') {
+      counts[nombre] = tables[nombre].length;
+    }
+  }
+  return { ...payload, tables, counts };
 }

@@ -12,10 +12,12 @@ import {
 } from './backup-crypto';
 import {
   TABLAS_RESPALDO,
+  normalizarPayloadRespaldo,
   type ConteosRespaldo,
   type RespaldoPayload,
   type VistaPreviaRespaldo
 } from './backup.types';
+import { contarTablasDesdePayload } from './backup-restore.util';
 
 const CLAVE_ULTIMO_RESPALDO = 'perfumescontrol_ultimo_respaldo_iso';
 
@@ -63,7 +65,8 @@ export class BackupService {
       }
     }
 
-    const counts = this.contarTablas(tables as RespaldoPayload['tables']);
+    const tablesNorm = tables as RespaldoPayload['tables'];
+    const counts = contarTablasDesdePayload(tablesNorm);
     const createdAt = new Date().toISOString();
 
     const payload: RespaldoPayload = {
@@ -72,7 +75,7 @@ export class BackupService {
       app: BACKUP_APP_ID,
       createdAt,
       databaseName: 'perfumescontrol',
-      tables: tables as RespaldoPayload['tables'],
+      tables: tablesNorm,
       counts
     };
 
@@ -80,27 +83,23 @@ export class BackupService {
     return payload;
   }
 
-  private contarTablas(tables: RespaldoPayload['tables']): ConteosRespaldo {
-    return {
-      clientes: tables.clientes.length,
-      productos: tables.productos.length,
-      compras: tables.compras.length,
-      abonos: tables.abonos.length,
-      operaciones_venta: tables.operaciones_venta.length,
-      ventas: tables.ventas.length,
-      venta_consumos: tables.venta_consumos.length
-    };
-  }
-
-  validarPayload(payload: RespaldoPayload): void {
+  validarPayload(payloadIn: RespaldoPayload): void {
     if (
-      payload.magic !== BACKUP_PAYLOAD_MAGIC ||
-      payload.app !== BACKUP_APP_ID ||
-      payload.formatVersion !== BACKUP_FORMAT_VERSION ||
-      payload.databaseName !== 'perfumescontrol'
+      payloadIn.magic !== BACKUP_PAYLOAD_MAGIC ||
+      payloadIn.app !== BACKUP_APP_ID ||
+      payloadIn.databaseName !== 'perfumescontrol'
     ) {
       throw new Error('El contenido del respaldo no corresponde a PerfumesControl.');
     }
+    if (
+      payloadIn.formatVersion < 1 ||
+      payloadIn.formatVersion > BACKUP_FORMAT_VERSION
+    ) {
+      throw new Error('Versión de respaldo incompatible.');
+    }
+
+    const payload = normalizarPayloadRespaldo(payloadIn);
+    Object.assign(payloadIn, payload);
 
     for (const nombre of TABLAS_RESPALDO) {
       if (!Array.isArray(payload.tables[nombre])) {

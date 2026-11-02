@@ -17,4 +17,19 @@ export const routes: Routes = [
         (m) => m.DiezmoHistorialPage
       ),
   },
+  {
+    path: 'catalogo',
+    loadComponent: () =>
+      import('./catalogo/catalogo.page').then((m) => m.CatalogoPage),
+  },
+  {
+    path: 'encargos',
+    loadComponent: () =>
+      import('./encargos/encargos.page').then((m) => m.EncargosPage),
+  },
+  {
+    path: 'ruleta',
+    loadComponent: () =>
+      import('./ruleta/ruleta.page').then((m) => m.RuletaPage),
+  },
 ];

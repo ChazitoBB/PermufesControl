@@ -40,6 +40,7 @@ export class Tab4Page {
   carrito: LineaCarrito[] = [];
   pagoInicial = '0';
   fechaVenta = this.hoyLocal();
+  codigoPremio = '';
 
   clienteAbonoId: number | null = null;
   importeAbono = '';
@@ -232,6 +233,7 @@ export class Tab4Page {
     this.precioAgregar = '';
     this.pagoInicial = '0';
     this.fechaVenta = this.hoyLocal();
+    this.codigoPremio = '';
   }
 
   async guardarVenta(): Promise<void> {
@@ -271,7 +273,8 @@ export class Tab4Page {
     }
 
     const total = lineas.reduce((s, l) => s + l.cantidad * l.precioCentavos, 0);
-    if (pago > total) {
+    // Con código, el total neto lo calcula el servidor (1 unidad / 3x2).
+    if (!this.codigoPremio.trim() && pago > total) {
       this.error = 'El pago inicial no puede superar el total de la venta.';
       return;
     }
@@ -282,11 +285,14 @@ export class Tab4Page {
         clienteId: this.clienteVentaId,
         lineas,
         abonoInicialCentavos: pago,
-        fecha: this.fechaVenta
+        fecha: this.fechaVenta,
+        codigoPremio: this.codigoPremio.trim() || null
       });
       await this.actualizar();
       this.limpiarCarrito();
-      this.mensaje = 'Venta multiproducto guardada. Inventario y cuenta actualizados.';
+      this.mensaje = this.codigoPremio.trim()
+        ? 'Venta guardada con promoción (código canjeado en la misma transacción).'
+        : 'Venta multiproducto guardada. Inventario y cuenta actualizados.';
     } catch (e) {
       console.error('Error al registrar venta:', e);
       this.error = e instanceof Error ? e.message : 'No se pudo guardar la venta.';

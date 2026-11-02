@@ -1,0 +1,71 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/tab1" text="Inicio"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Ruleta (prueba)</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="contenedor">
+    <h1>Ruleta de premios</h1>
+    <p class="aviso">
+      Solo para pruebas con datos ficticios. No activa promociones aleatorias
+      automáticamente para clientes reales. Sectores angulares = probabilidades reales.
+    </p>
+    <p class="error" *ngIf="error">{{ error }}</p>
+    <p class="mensaje" *ngIf="mensaje">{{ mensaje }}</p>
+
+    <label>Cliente de prueba</label>
+    <select [(ngModel)]="clienteId" name="clienteId">
+      <option [ngValue]="null">Selecciona</option>
+      <option *ngFor="let c of clientes" [ngValue]="c.id">{{ c.nombre }}</option>
+    </select>
+
+    <div class="ruleta-wrap">
+      <div class="puntero"></div>
+      <div
+        class="disco"
+        [style.background]="conicGradient()"
+        [style.transform]="'rotate(' + rotacionDeg + 'deg)'">
+      </div>
+    </div>
+
+    <ul class="probs">
+      <li *ngFor="let p of premios">{{ p.etiqueta }} → {{ p.probabilidadPct }}%</li>
+      <li><em>Total 100% (sectores angulares proporcionales)</em></li>
+    </ul>
+
+    <button type="button" class="principal" [disabled]="girando" (click)="girar()">
+      {{ girando ? 'Girando…' : 'Girar (prueba)' }}
+    </button>
+
+    <section *ngIf="ultimoCodigo as uc" class="bloque">
+      <h2>Último código</h2>
+      <p>{{ uc.codigo }} · {{ uc.etiqueta }}</p>
+      <a
+        class="wa"
+        *ngIf="telefonoCliente(uc.cliente_id)"
+        [href]="'https://wa.me/' + telefonoCliente(uc.cliente_id) + '?text=' + textoWhatsApp(uc)"
+        target="_blank"
+        rel="noopener">
+        Abrir WhatsApp (envío manual)
+      </a>
+      <button
+        type="button"
+        *ngIf="uc.tipo_premio === 'sorpresa'"
+        (click)="marcarSorpresa(uc)">
+        Marcar sorpresa entregada
+      </button>
+    </section>
+
+    <section class="bloque">
+      <h2>Historial de códigos</h2>
+      <article *ngFor="let c of codigos" class="fila">
+        <strong>{{ c.codigo }}</strong>
+        <span>{{ c.cliente }} · {{ c.etiqueta }} · {{ c.estado }}</span>
+      </article>
+    </section>
+  </div>
+</ion-content>

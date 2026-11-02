@@ -54,7 +54,11 @@ describe('BackupService.validarPayload (ficticio)', () => {
         compra_id: 100,
         cantidad: 1,
         costo_unitario_centavos: 10000
-      }]
+      }],
+      encargos: [],
+      promocion_codigos: [],
+      promocion_canjes: [],
+      ruleta_giros: []
     },
     counts: {
       clientes: 1,
@@ -63,12 +67,24 @@ describe('BackupService.validarPayload (ficticio)', () => {
       abonos: 0,
       operaciones_venta: 1,
       ventas: 1,
-      venta_consumos: 1
+      venta_consumos: 1,
+      encargos: 0,
+      promocion_codigos: 0,
+      promocion_canjes: 0,
+      ruleta_giros: 0
     }
   });
 
   it('acepta un payload ficticio consistente', () => {
     expect(() => servicio.validarPayload(base())).not.toThrow();
+  });
+
+  it('acepta respaldo v1 sin tablas nuevas (normaliza vacías)', () => {
+    const v1 = base();
+    v1.formatVersion = 1;
+    delete (v1.tables as { encargos?: unknown }).encargos;
+    delete (v1.counts as { encargos?: unknown }).encargos;
+    expect(() => servicio.validarPayload(v1)).not.toThrow();
   });
 
   it('rechaza app incorrecta', () => {

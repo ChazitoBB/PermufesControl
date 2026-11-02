@@ -101,6 +101,16 @@
           Agrega uno o más perfumes al carrito para continuar.
         </p>
 
+        <label for="venta-codigo">Código de premio (opcional, 1 por venta)</label>
+        <input id="venta-codigo" type="text" name="codigoPremio"
+          [(ngModel)]="codigoPremio"
+          placeholder="PC-...."
+          autocomplete="off" />
+        <p class="ayuda">
+          El % aplica a una sola unidad. El 3x2 requiere ≥3 de 60&nbsp;ml.
+          El canje ocurre en la misma transacción SQLite que la venta.
+        </p>
+
         <label for="venta-pago">Pago inicial ($) · 0 si queda a deber</label>
         <input id="venta-pago" type="text" inputmode="decimal"
           name="pagoInicial" [(ngModel)]="pagoInicial" required />

@@ -1,0 +1,74 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/tab1" text="Inicio"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Encargos</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="contenedor">
+    <h1>Encargos de clientes</h1>
+    <p class="ayuda">
+      No generan venta, deuda ni descuento de inventario automáticamente.
+    </p>
+    <p class="error" *ngIf="error">{{ error }}</p>
+    <p class="mensaje" *ngIf="mensaje">{{ mensaje }}</p>
+
+    <section class="bloque">
+      <h2>Nuevo encargo</h2>
+      <label>Cliente</label>
+      <select [(ngModel)]="clienteId" name="clienteId">
+        <option [ngValue]="null">Selecciona</option>
+        <option *ngFor="let c of clientes" [ngValue]="c.id">{{ c.nombre }}</option>
+      </select>
+      <label>Perfume</label>
+      <input [(ngModel)]="nombrePerfume" name="nombrePerfume" />
+      <label>Tamaño</label>
+      <select [(ngModel)]="mililitros" name="mililitros">
+        <option [ngValue]="60">60 ml</option>
+        <option [ngValue]="120">120 ml</option>
+      </select>
+      <label>Concentración</label>
+      <select [(ngModel)]="concentracion" name="concentracion">
+        <option *ngFor="let c of concentraciones" [value]="c">{{ c || '(vacía)' }}</option>
+      </select>
+      <label>Piezas</label>
+      <input type="number" min="1" [(ngModel)]="cantidad" name="cantidad" />
+      <label>Fecha solicitud</label>
+      <input type="date" [(ngModel)]="fecha" name="fecha" />
+      <label>Notas</label>
+      <input [(ngModel)]="notas" name="notas" />
+      <button type="button" class="principal" [disabled]="ocupado" (click)="crear()">Guardar</button>
+    </section>
+
+    <section class="bloque">
+      <h2>Lista para resurtir</h2>
+      <ul>
+        <li *ngFor="let r of listaResurtir">
+          {{ r.nombre }} · {{ r.mililitros }} ml · {{ r.piezas }} pza
+        </li>
+      </ul>
+      <p *ngIf="!listaResurtir.length">Sin encargos activos.</p>
+    </section>
+
+    <section class="bloque">
+      <h2>Encargos</h2>
+      <article *ngFor="let e of encargos" class="card-encargo">
+        <strong>{{ e.nombre_perfume }}</strong>
+        <span>{{ e.cliente }} · {{ e.cantidad }} × {{ e.mililitros }} ml · {{ e.estado }}</span>
+        <span>{{ e.fecha_solicitud }} · {{ e.notas || '—' }}</span>
+        <div class="acciones">
+          <button type="button" (click)="cambiarEstado(e, 'pedido')">Pedido</button>
+          <button type="button" (click)="marcarConseguidoConCompra(e)">Conseguido + compra</button>
+          <button type="button" (click)="cambiarEstado(e, 'cancelado')">Cancelar</button>
+          <a [routerLink]="['/tabs/tab4']"
+             [queryParams]="{ encargoId: e.id, productoId: e.producto_id, clienteId: e.cliente_id }">
+            Ir a venta
+          </a>
+        </div>
+      </article>
+    </section>
+  </div>
+</ion-content>

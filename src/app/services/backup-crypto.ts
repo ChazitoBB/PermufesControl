@@ -6,7 +6,8 @@
 
 export const BACKUP_MAGIC = 'PERFUMESCONTROL_BACKUP';
 export const BACKUP_PAYLOAD_MAGIC = 'PERFUMESCONTROL_BACKUP_PAYLOAD';
-export const BACKUP_FORMAT_VERSION = 1;
+/** v2: incluye encargos y tablas de promociones; v1 sigue siendo restaurable. */
+export const BACKUP_FORMAT_VERSION = 2;
 export const BACKUP_APP_ID = 'PerfumesControl';
 
 const PBKDF2_ITERATIONS = 310_000;

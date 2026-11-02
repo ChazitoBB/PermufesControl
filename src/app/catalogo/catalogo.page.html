@@ -1,0 +1,101 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/tabs/tab1" text="Inicio"></ion-back-button>
+    </ion-buttons>
+    <ion-title>Catálogo</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="contenedor">
+    <h1>Catálogo de perfumes</h1>
+    <p class="ayuda">Busca, filtra y resurtir sin duplicar productos. Sin existencias también aparecen.</p>
+
+    <p class="error" *ngIf="error">{{ error }}</p>
+    <p class="mensaje" *ngIf="mensaje">{{ mensaje }}</p>
+
+    <section class="bloque">
+      <label>Buscar por nombre</label>
+      <input [(ngModel)]="filtroNombre" name="filtroNombre" />
+      <label>Categoría</label>
+      <select [(ngModel)]="filtroCategoria" name="filtroCategoria">
+        <option value="">Todas</option>
+        <option *ngFor="let c of categorias" [value]="c">{{ etiquetaCategoria(c) }}</option>
+      </select>
+      <label>Tamaño</label>
+      <select [(ngModel)]="filtroMl" name="filtroMl">
+        <option value="">Todos</option>
+        <option [ngValue]="60">60 ml</option>
+        <option [ngValue]="120">120 ml</option>
+      </select>
+      <label>Concentración</label>
+      <select [(ngModel)]="filtroConcentracion" name="filtroConcentracion">
+        <option value="">Todas</option>
+        <option *ngFor="let c of concentraciones" [value]="c">{{ c || '(vacía)' }}</option>
+      </select>
+    </section>
+
+    <button type="button" class="principal" (click)="mostrarAlta = !mostrarAlta">
+      {{ mostrarAlta ? 'Cerrar alta' : 'Alta rápida de perfume' }}
+    </button>
+
+    <section class="bloque" *ngIf="mostrarAlta">
+      <h2>Nuevo perfume + compra inicial</h2>
+      <label>Nombre</label>
+      <input [(ngModel)]="nombre" name="nombre" />
+      <label>Categoría</label>
+      <select [(ngModel)]="categoria" name="categoria" (ngModelChange)="alCambiarCategoria()">
+        <option *ngFor="let c of categorias" [value]="c">{{ etiquetaCategoria(c) }}</option>
+      </select>
+      <label>Piezas iniciales</label>
+      <input type="number" min="1" [(ngModel)]="piezas" name="piezas" />
+      <label>Fecha</label>
+      <input type="date" [(ngModel)]="fecha" name="fecha" />
+      <button type="button" class="secundario" (click)="mostrarAvanzado = !mostrarAvanzado">
+        {{ mostrarAvanzado ? 'Ocultar' : 'Mostrar' }} tamaño / concentración / costos
+      </button>
+      <ng-container *ngIf="mostrarAvanzado">
+        <label>Tamaño (ml)</label>
+        <select [(ngModel)]="mililitros" name="mililitros">
+          <option [ngValue]="60">60</option>
+          <option [ngValue]="120">120</option>
+        </select>
+        <label>Concentración</label>
+        <select [(ngModel)]="concentracion" name="concentracion">
+          <option *ngFor="let c of concentraciones" [value]="c">{{ c || '(vacía)' }}</option>
+        </select>
+        <label>Costo unitario</label>
+        <input [(ngModel)]="costo" name="costo" />
+        <label>Precio venta</label>
+        <input [(ngModel)]="precio" name="precio" />
+      </ng-container>
+      <button type="button" class="principal" [disabled]="ocupado" (click)="crearPerfume()">
+        Guardar perfume
+      </button>
+    </section>
+
+    <section class="bloque" *ngIf="productoResurtir as pr">
+      <h2>Resurtir: {{ pr.nombre }}</h2>
+      <label>Piezas</label>
+      <input type="number" min="1" [(ngModel)]="piezasResurtir" name="piezasResurtir" />
+      <label>Costo unitario</label>
+      <input [(ngModel)]="costoResurtir" name="costoResurtir" />
+      <label>Fecha</label>
+      <input type="date" [(ngModel)]="fechaResurtir" name="fechaResurtir" />
+      <button type="button" class="principal" [disabled]="ocupado" (click)="confirmarResurtir()">Confirmar compra</button>
+      <button type="button" class="secundario" (click)="productoResurtir = null">Cancelar</button>
+    </section>
+
+    <ul class="lista">
+      <li *ngFor="let p of filtrados">
+        <strong>{{ p.nombre }}</strong>
+        <span>{{ etiquetaCategoria(p.categoria) }} · {{ p.mililitros }} ml · {{ p.concentracion || '—' }}</span>
+        <span>Stock: {{ unidadesDe(p.id) }} · {{ formatoMXN(p.precio_venta_centavos) }}</span>
+        <button type="button" class="secundario" (click)="abrirResurtir(p)">Comprar más</button>
+      </li>
+    </ul>
+
+    <p class="enlace-inicio"><a routerLink="/tabs/tab3">Ir a Inventario</a></p>
+  </div>
+</ion-content>
