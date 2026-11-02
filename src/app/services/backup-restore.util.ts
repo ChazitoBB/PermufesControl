@@ -1,5 +1,6 @@
 import type {
   ConteosRespaldo,
+  MetricasPreviewRespaldo,
   NombreTablaRespaldo,
   TablasRespaldo
 } from './backup.types';
@@ -84,13 +85,7 @@ export function contarTablasDesdePayload(tables: TablasRespaldo): ConteosRespald
   return counts;
 }
 
-export interface MetricasPreviewRespaldo {
-  saldo_global_centavos: number;
-  inventario_unidades: number;
-  ganancia_bruta_fifo_centavos: number;
-  total_ventas_centavos: number;
-  total_abonos_centavos: number;
-}
+export type { MetricasPreviewRespaldo };
 
 export function calcularMetricasDesdePayload(
   tables: TablasRespaldo

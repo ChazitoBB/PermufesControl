@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { IonApp, IonRouterOutlet } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
@@ -26,6 +26,7 @@ import {
   ribbonOutline,
   searchOutline,
   settingsOutline,
+  shareOutline,
   shieldCheckmarkOutline,
   sparklesOutline,
   starOutline,
@@ -34,14 +35,15 @@ import {
   walletOutline,
   warningOutline
 } from 'ionicons/icons';
+import { AppIdentityService } from './services/app-identity.service';
 
 @Component({
   selector: 'app-root',
   templateUrl: 'app.component.html',
   imports: [IonApp, IonRouterOutlet],
 })
-export class AppComponent {
-  constructor() {
+export class AppComponent implements OnInit {
+  constructor(private identidad: AppIdentityService) {
     addIcons({
       addOutline,
       alertCircleOutline,
@@ -67,6 +69,7 @@ export class AppComponent {
       ribbonOutline,
       searchOutline,
       settingsOutline,
+      shareOutline,
       shieldCheckmarkOutline,
       sparklesOutline,
       starOutline,
@@ -75,5 +78,9 @@ export class AppComponent {
       walletOutline,
       warningOutline
     });
+  }
+
+  async ngOnInit(): Promise<void> {
+    await this.identidad.inicializar();
   }
 }

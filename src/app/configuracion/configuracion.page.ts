@@ -12,6 +12,7 @@ import {
   IonToolbar
 } from '@ionic/angular';
 import { BackupService } from '../services/backup.service';
+import { AppIdentityService } from '../services/app-identity.service';
 import type { RespaldoPayload, VistaPreviaRespaldo } from '../services/backup.types';
 
 @Component({
@@ -39,28 +40,47 @@ export class ConfiguracionPage implements OnInit {
   passwordCopiaPrevia = '';
 
   archivoSeleccionado: File | null = null;
+  nombreArchivoSeleccionado = '';
   preview: VistaPreviaRespaldo | null = null;
   payloadValidado: RespaldoPayload | null = null;
   confirmarReemplazo = false;
 
   ultimoRespaldoIso: string | null = null;
+  rutaPreRestore: string | null = null;
 
   ocupado = false;
   mensaje = '';
   error = '';
-
-  readonly restauracionAplicadaHabilitada =
-    this.backup.restauracionAplicadaHabilitada;
-  readonly restauracionAndroidPendiente =
-    this.backup.restauracionAndroidPendiente;
+  identidadLista = false;
 
   constructor(
     private backup: BackupService,
+    private identidad: AppIdentityService,
     private cdr: ChangeDetectorRef
   ) {}
 
-  ngOnInit(): void {
+  get restauracionAplicadaHabilitada(): boolean {
+    return this.identidadLista && this.backup.restauracionAplicadaHabilitada;
+  }
+
+  get restauracionAndroidPendiente(): boolean {
+    return this.identidadLista && this.backup.restauracionAndroidPendiente;
+  }
+
+  get esApkRestoreTest(): boolean {
+    return this.identidadLista && this.backup.esApkRestoreTest;
+  }
+
+  get applicationIdActual(): string {
+    return this.backup.applicationIdActual;
+  }
+
+  async ngOnInit(): Promise<void> {
+    await this.identidad.inicializar();
+    this.identidadLista = true;
     this.ultimoRespaldoIso = this.backup.obtenerFechaUltimoRespaldo();
+    this.rutaPreRestore = this.backup.obtenerRutaUltimoPreRestore();
+    this.cdr.detectChanges();
   }
 
   formatoFecha(iso: string | null): string {
@@ -73,6 +93,13 @@ export class ConfiguracionPage implements OnInit {
     } catch {
       return iso;
     }
+  }
+
+  formatoCentavos(centavos: number): string {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN'
+    }).format(centavos / 100);
   }
 
   async crearRespaldo(): Promise<void> {
@@ -98,13 +125,17 @@ export class ConfiguracionPage implements OnInit {
       this.ultimoRespaldoIso = resultado.createdAt;
       this.passwordExportar = '';
       this.passwordConfirmar = '';
+      const destino =
+        resultado.modo === 'nativo-compartir'
+          ? 'Usa el menú Compartir para guardarlo en Drive, Archivos u otra app.'
+          : 'Guárdalo fuera del teléfono y recuerda la contraseña.';
       this.mensaje =
         `Respaldo creado: ${resultado.nombreArchivo}. ` +
         `Clientes ${resultado.counts.clientes}, ` +
         `productos ${resultado.counts.productos}, ` +
         `ventas ${resultado.counts.ventas}, ` +
         `abonos ${resultado.counts.abonos}. ` +
-        'Guárdalo fuera del teléfono y recuerda la contraseña.';
+        destino;
     } catch (e) {
       console.error('Error al crear respaldo:', e);
       this.error = e instanceof Error ? e.message : 'No se pudo crear el respaldo.';
@@ -118,6 +149,7 @@ export class ConfiguracionPage implements OnInit {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
     this.archivoSeleccionado = file;
+    this.nombreArchivoSeleccionado = file?.name ?? '';
     this.preview = null;
     this.payloadValidado = null;
     this.confirmarReemplazo = false;
@@ -152,7 +184,7 @@ export class ConfiguracionPage implements OnInit {
       this.preview = preview;
       this.payloadValidado = payload;
       this.mensaje =
-        'Respaldo válido. Revisa la vista previa. ' +
+        'Respaldo válido (incluye verificación en BD temporal). ' +
         (this.restauracionAplicadaHabilitada
           ? 'Puedes restaurar tras confirmar el reemplazo.'
           : 'La restauración aplicada sigue deshabilitada en esta plataforma.');
@@ -175,7 +207,7 @@ export class ConfiguracionPage implements OnInit {
     if (!this.restauracionAplicadaHabilitada) {
       this.error =
         this.restauracionAndroidPendiente
-          ? 'Restauración deshabilitada en Android hasta verificación nativa. Usa Chrome/web para pruebas.'
+          ? 'La restauración aplicada está deshabilitada en esta compilación.'
           : 'La restauración aplicada está deshabilitada en esta plataforma.';
       return;
     }
@@ -201,12 +233,14 @@ export class ConfiguracionPage implements OnInit {
         this.passwordCopiaPrevia
       );
       this.ultimoRespaldoIso = this.backup.obtenerFechaUltimoRespaldo();
+      this.rutaPreRestore = resultado.copiaSeguridadRuta;
       this.passwordRestaurar = '';
       this.passwordCopiaPrevia = '';
       this.confirmarReemplazo = false;
       this.mensaje =
         `Restauración completada. ` +
-        `Copia de seguridad previa: ${resultado.copiaSeguridadNombre}. ` +
+        `PRE-RESTORE: ${resultado.copiaSeguridadNombre} ` +
+        `(${resultado.copiaSeguridadRuta}). ` +
         `Clientes ${resultado.counts.clientes}, ventas ${resultado.counts.ventas}, ` +
         `abonos ${resultado.counts.abonos}. ` +
         'Recarga Inicio para ver saldos, inventario y diezmo.';
@@ -215,6 +249,23 @@ export class ConfiguracionPage implements OnInit {
       this.error =
         (e instanceof Error ? e.message : 'No se pudo restaurar.') +
         ' Los datos anteriores debieron conservarse por rollback.';
+    } finally {
+      this.ocupado = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  async compartirPreRestore(): Promise<void> {
+    if (this.ocupado) return;
+    this.error = '';
+    this.mensaje = '';
+    this.ocupado = true;
+    this.cdr.detectChanges();
+    try {
+      await this.backup.compartirUltimoPreRestore();
+      this.mensaje = 'Menú Compartir abierto para la copia PRE-RESTORE.';
+    } catch (e) {
+      this.error = e instanceof Error ? e.message : 'No se pudo compartir PRE-RESTORE.';
     } finally {
       this.ocupado = false;
       this.cdr.detectChanges();

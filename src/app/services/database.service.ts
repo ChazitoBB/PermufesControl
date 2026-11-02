@@ -210,6 +210,8 @@ export class DatabaseService {
   private readonly sqlite = new SQLiteConnection(CapacitorSQLite);
   private conexion?: SQLiteDBConnection;
   private inicializacion?: Promise<void>;
+  /** Evita escrituras concurrentes mientras corre una restauración. */
+  private restauracionEnCurso = false;
 
   iniciar(): Promise<void> {
     if (!this.inicializacion) {
@@ -219,6 +221,14 @@ export class DatabaseService {
       });
     }
     return this.inicializacion;
+  }
+
+  private asegurarEscrituraPermitida(): void {
+    if (this.restauracionEnCurso) {
+      throw new Error(
+        'Hay una restauración en curso. Espera a que termine antes de registrar operaciones.'
+      );
+    }
   }
 
   private async iniciarBD(): Promise<void> {
@@ -784,6 +794,7 @@ export class DatabaseService {
   }
 
   async agregarCliente(nombre: string, telefono: string): Promise<void> {
+    this.asegurarEscrituraPermitida();
     await this.iniciar();
     await this.conexion!.run(
       'INSERT INTO clientes (nombre, telefono) VALUES (?, ?)',
@@ -812,6 +823,7 @@ export class DatabaseService {
     categoria: 'hombre' | 'mujer' | 'sin_clasificar' = 'sin_clasificar',
     concentracion = ''
   ): Promise<number> {
+    this.asegurarEscrituraPermitida();
     await this.iniciar();
     const insertado = await this.conexion!.run(
       `INSERT INTO productos
@@ -848,6 +860,7 @@ export class DatabaseService {
     piezas: number;
     fecha: string;
   }): Promise<{ productoId: number; compraId: number }> {
+    this.asegurarEscrituraPermitida();
     await this.iniciar();
     const {
       nombre, mililitros, costoCentavos, precioCentavos,
@@ -905,6 +918,7 @@ export class DatabaseService {
     costoCentavos: number,
     fecha: string
   ): Promise<void> {
+    this.asegurarEscrituraPermitida();
     await this.iniciar();
 
     if (!Number.isSafeInteger(productoId) || productoId <= 0 ||
@@ -981,6 +995,7 @@ export class DatabaseService {
     abonoInicialCentavos: number;
     fecha: string;
   }): Promise<void> {
+    this.asegurarEscrituraPermitida();
     await this.registrarVentaMultiple({
       clienteId: datos.clienteId,
       lineas: [{
@@ -1002,6 +1017,7 @@ export class DatabaseService {
     fecha: string;
     codigoPremio?: string | null;
   }): Promise<number> {
+    this.asegurarEscrituraPermitida();
     await this.iniciar();
     const { clienteId, lineas, abonoInicialCentavos, fecha } = datos;
     const codigoTexto = (datos.codigoPremio ?? '').trim().toUpperCase();
@@ -1374,6 +1390,7 @@ export class DatabaseService {
   async registrarAbono(
     clienteId: number, importeCentavos: number, fecha: string
   ): Promise<void> {
+    this.asegurarEscrituraPermitida();
     await this.iniciar();
     if (!Number.isSafeInteger(clienteId) || clienteId <= 0 ||
         !Number.isSafeInteger(importeCentavos) || importeCentavos <= 0 ||
@@ -1768,6 +1785,47 @@ export class DatabaseService {
     if ((Number(consumosRotos.values?.[0]?.total) || 0) > 0) {
       throw new Error('Consumos FIFO inconsistentes tras la restauración.');
     }
+
+    const encargosRotos = await conexion.query(`
+      SELECT COUNT(*) AS total
+      FROM encargos e
+      LEFT JOIN clientes c ON c.id = e.cliente_id
+      WHERE c.id IS NULL
+    `);
+    if ((Number(encargosRotos.values?.[0]?.total) || 0) > 0) {
+      throw new Error('Encargos sin cliente tras la restauración.');
+    }
+
+    const codigosRotos = await conexion.query(`
+      SELECT COUNT(*) AS total
+      FROM promocion_codigos pc
+      LEFT JOIN clientes c ON c.id = pc.cliente_id
+      WHERE c.id IS NULL
+    `);
+    if ((Number(codigosRotos.values?.[0]?.total) || 0) > 0) {
+      throw new Error('Códigos promocionales sin cliente tras la restauración.');
+    }
+
+    const canjesRotos = await conexion.query(`
+      SELECT COUNT(*) AS total
+      FROM promocion_canjes k
+      LEFT JOIN promocion_codigos pc ON pc.id = k.codigo_id
+      LEFT JOIN operaciones_venta o ON o.id = k.operacion_venta_id
+      WHERE pc.id IS NULL OR o.id IS NULL
+    `);
+    if ((Number(canjesRotos.values?.[0]?.total) || 0) > 0) {
+      throw new Error('Canjes promocionales inconsistentes tras la restauración.');
+    }
+
+    const girosRotos = await conexion.query(`
+      SELECT COUNT(*) AS total
+      FROM ruleta_giros g
+      LEFT JOIN promocion_codigos pc ON pc.id = g.codigo_id
+      WHERE g.codigo_id IS NOT NULL AND pc.id IS NULL
+    `);
+    if ((Number(girosRotos.values?.[0]?.total) || 0) > 0) {
+      throw new Error('Giros de ruleta inconsistentes tras la restauración.');
+    }
   }
 
   /**
@@ -1824,18 +1882,31 @@ export class DatabaseService {
    * Debe llamarse solo después de verificarEnBaseTemporal + confirmación.
    */
   async restaurarDesdePayload(payload: RespaldoPayload): Promise<void> {
-    await this.iniciar();
-    await this.conexion!.beginTransaction();
-    try {
-      await this.vaciarTablasNegocio(this.conexion!, true);
-      await this.insertarPayloadEnConexion(this.conexion!, payload, true);
-      await this.validarIntegridadPostCarga(this.conexion!, payload.counts);
-      await this.conexion!.commitTransaction();
-    } catch (error) {
-      await this.conexion!.rollbackTransaction();
-      throw error;
+    if (this.restauracionEnCurso) {
+      throw new Error('Ya hay una restauración en curso.');
     }
-    await this.persistirWeb();
+    this.restauracionEnCurso = true;
+    try {
+      await this.iniciar();
+      await this.conexion!.beginTransaction();
+      try {
+        await this.vaciarTablasNegocio(this.conexion!, true);
+        await this.insertarPayloadEnConexion(this.conexion!, payload, true);
+        await this.validarIntegridadPostCarga(this.conexion!, payload.counts);
+        await this.conexion!.commitTransaction();
+      } catch (error) {
+        try {
+          await this.conexion!.rollbackTransaction();
+        } catch {
+          // Si el rollback falla, reportar el error original de restauración.
+        }
+        throw error;
+      }
+      await this.validarIntegridadPostCarga(this.conexion!, payload.counts);
+      await this.persistirWeb();
+    } finally {
+      this.restauracionEnCurso = false;
+    }
   }
 
   // --- Encargos ---
@@ -1864,6 +1935,7 @@ export class DatabaseService {
     fechaSolicitud: string;
     notas: string;
   }): Promise<number> {
+    this.asegurarEscrituraPermitida();
     await this.iniciar();
     const insertado = await this.conexion!.run(
       `INSERT INTO encargos (
@@ -1892,6 +1964,7 @@ export class DatabaseService {
     encargoId: number,
     estado: EstadoEncargo
   ): Promise<void> {
+    this.asegurarEscrituraPermitida();
     await this.iniciar();
     await this.conexion!.run(
       'UPDATE encargos SET estado = ? WHERE id = ?',
@@ -1910,6 +1983,7 @@ export class DatabaseService {
     costoUnitarioCentavos: number,
     fecha: string
   ): Promise<number> {
+    this.asegurarEscrituraPermitida();
     await this.iniciar();
     await this.conexion!.beginTransaction();
     try {
@@ -1961,6 +2035,7 @@ export class DatabaseService {
     encargoId: number,
     operacionVentaId: number
   ): Promise<void> {
+    this.asegurarEscrituraPermitida();
     await this.iniciar();
     const r = await this.conexion!.query(
       'SELECT operacion_venta_id FROM encargos WHERE id = ?',
@@ -1989,6 +2064,7 @@ export class DatabaseService {
     etiqueta: string;
     porcentaje: number | null;
   }): Promise<CodigoPremio> {
+    this.asegurarEscrituraPermitida();
     await this.iniciar();
     const { generarCodigoPremioUnico } = await import('./promociones.util');
     let codigo = '';
@@ -2049,6 +2125,7 @@ export class DatabaseService {
     codigoId: number | null;
     ticket: number;
   }): Promise<number> {
+    this.asegurarEscrituraPermitida();
     await this.iniciar();
     const insertado = await this.conexion!.run(
       `INSERT INTO ruleta_giros
@@ -2089,6 +2166,7 @@ export class DatabaseService {
   }
 
   async marcarSorpresaEntregada(codigoId: number): Promise<void> {
+    this.asegurarEscrituraPermitida();
     await this.iniciar();
     await this.conexion!.run(
       `UPDATE promocion_codigos SET sorpresa_entregada = 1 WHERE id = ?`,
@@ -2098,6 +2176,7 @@ export class DatabaseService {
   }
 
   async anularCodigoPremio(codigoId: number): Promise<void> {
+    this.asegurarEscrituraPermitida();
     await this.iniciar();
     await this.conexion!.run(
       `UPDATE promocion_codigos SET estado = 'anulado'

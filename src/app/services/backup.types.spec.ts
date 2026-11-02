@@ -8,7 +8,7 @@ import {
 import type { RespaldoPayload } from './backup.types';
 
 describe('BackupService.validarPayload (ficticio)', () => {
-  const servicio = new BackupService({} as never);
+  const servicio = new BackupService({} as never, { esRestoreTest: false } as never);
 
   const base = (): RespaldoPayload => ({
     magic: BACKUP_PAYLOAD_MAGIC,

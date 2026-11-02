@@ -48,12 +48,21 @@ export interface RespaldoPayload {
   counts: ConteosRespaldo;
 }
 
+export interface MetricasPreviewRespaldo {
+  saldo_global_centavos: number;
+  inventario_unidades: number;
+  ganancia_bruta_fifo_centavos: number;
+  total_ventas_centavos: number;
+  total_abonos_centavos: number;
+}
+
 export interface VistaPreviaRespaldo {
   createdAt: string;
   formatVersion: number;
   counts: ConteosRespaldo;
   valido: boolean;
   advertencias: string[];
+  metricas: MetricasPreviewRespaldo;
 }
 
 /** Completa tablas v2 vacías al leer respaldos v1. */

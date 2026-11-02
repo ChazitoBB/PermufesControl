@@ -12,7 +12,11 @@
     <div class="encabezado">
       <p class="subtitulo">Configuración</p>
       <h1>Respaldos SQLite</h1>
-      <p>Exporta una copia cifrada de tu negocio para guardarla fuera de la app.</p>
+      <p>Exporta una copia cifrada de tu negocio. En Android se abre el menú Compartir para guardarla fuera de la app.</p>
+      <p class="ayuda" *ngIf="esApkRestoreTest">
+        Variante de prueba de restauración ({{ applicationIdActual }}).
+        Usa solo datos ficticios.
+      </p>
     </div>
 
     <div class="aviso">
@@ -23,6 +27,10 @@
       <p>
         Último respaldo exitoso en este dispositivo:
         <strong>{{ formatoFecha(ultimoRespaldoIso) }}</strong>
+      </p>
+      <p *ngIf="rutaPreRestore">
+        Última copia PRE-RESTORE local:
+        <strong>{{ rutaPreRestore }}</strong>
       </p>
     </div>
 
@@ -73,13 +81,13 @@
         <h2>Restaurar respaldo</h2>
       </div>
       <p class="ayuda" *ngIf="restauracionAplicadaHabilitada">
-        Flujo seguro: valida el archivo → genera copia PRE-RESTORE del estado actual →
-        verifica en base temporal → aplica en una sola transacción (rollback si falla).
+        Flujo seguro: valida el archivo (SAF/Drive) → verifica en base temporal →
+        genera copia PRE-RESTORE del estado actual → aplica en una sola transacción.
       </p>
       <p class="ayuda" *ngIf="!restauracionAplicadaHabilitada">
-        La restauración aplicada está deshabilitada en esta plataforma.
+        La restauración aplicada está deshabilitada en esta aplicación.
         <span *ngIf="restauracionAndroidPendiente">
-          En Android falta verificación nativa antes de usarla con datos reales.
+          Esta compilación no incluye la restauración aplicada.
         </span>
       </p>
 
@@ -87,9 +95,12 @@
       <input
         id="archivo-respaldo"
         type="file"
-        accept=".pcbak,application/json,text/plain"
+        accept=".pcbak,application/json,text/plain,application/octet-stream,*/*"
         [disabled]="ocupado"
         (change)="onArchivoSeleccionado($event)" />
+      <p class="ayuda" *ngIf="nombreArchivoSeleccionado">
+        Seleccionado: {{ nombreArchivoSeleccionado }}
+      </p>
 
       <label for="pass-restore">Contraseña del respaldo</label>
       <input
@@ -120,6 +131,13 @@
           <li>Operaciones: {{ p.counts.operaciones_venta }}</li>
           <li>Consumos FIFO: {{ p.counts.venta_consumos }}</li>
           <li>Abonos: {{ p.counts.abonos }}</li>
+          <li>Encargos: {{ p.counts.encargos }}</li>
+          <li>Códigos: {{ p.counts.promocion_codigos }}</li>
+          <li>Canjes: {{ p.counts.promocion_canjes }}</li>
+          <li>Giros: {{ p.counts.ruleta_giros }}</li>
+          <li>Saldo global esperado: {{ formatoCentavos(p.metricas.saldo_global_centavos) }}</li>
+          <li>Inventario esperado: {{ p.metricas.inventario_unidades }} u.</li>
+          <li>Ganancia bruta FIFO: {{ formatoCentavos(p.metricas.ganancia_bruta_fifo_centavos) }}</li>
         </ul>
         <p class="advertencia" *ngFor="let a of p.advertencias">{{ a }}</p>
         <p class="advertencia">
@@ -157,6 +175,15 @@
         [disabled]="ocupado || !restauracionAplicadaHabilitada || !payloadValidado"
         (click)="intentarRestaurar()">
         {{ restauracionAplicadaHabilitada ? 'Restaurar respaldo' : 'Restaurar (deshabilitado)' }}
+      </button>
+      <button
+        type="button"
+        class="secundario"
+        *ngIf="rutaPreRestore"
+        [disabled]="ocupado"
+        (click)="compartirPreRestore()">
+        <ion-icon name="share-outline" aria-hidden="true"></ion-icon>
+        Compartir última copia PRE-RESTORE
       </button>
     </section>
 

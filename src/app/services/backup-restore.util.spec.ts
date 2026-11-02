@@ -68,7 +68,9 @@ describe('backup-restore.util', () => {
     expect(m.saldo_global_centavos).toBe(56000 - 1000);
   });
 
-  it('ruta PRE-RESTORE saneada', () => {
+  it('ruta PRE-RESTORE es persistente y saneada', () => {
+    expect(rutaPreRestorePersistente('PRE-RESTORE-a.pcbak'))
+      .toBe('pre-restore/PRE-RESTORE-a.pcbak');
     expect(rutaPreRestorePersistente('PRE-RESTORE a/../x.pcbak')).not.toContain('..');
   });
 });
