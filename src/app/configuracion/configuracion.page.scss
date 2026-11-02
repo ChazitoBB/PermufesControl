@@ -105,6 +105,32 @@ input[type='file'] {
   cursor: not-allowed;
 }
 
+.peligro.peligro-activo {
+  background: var(--ion-color-danger);
+  color: var(--ion-color-danger-contrast);
+  opacity: 1;
+  cursor: pointer;
+}
+
+.peligro.peligro-activo:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--ion-color-medium);
+
+  input {
+    margin-top: 3px;
+    width: auto;
+  }
+}
+
 .principal:disabled,
 .secundario:disabled {
   opacity: 0.5;

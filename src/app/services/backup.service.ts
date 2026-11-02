@@ -21,8 +21,17 @@ const CLAVE_ULTIMO_RESPALDO = 'perfumescontrol_ultimo_respaldo_iso';
 
 @Injectable({ providedIn: 'root' })
 export class BackupService {
-  /** La restauración aplicada permanece deshabilitada hasta un flujo atómico seguro. */
-  readonly restauracionAplicadaHabilitada = false;
+  /**
+   * Restauración segura habilitada en web (transacción + BD temporal).
+   * En Android permanece deshabilitada hasta prueba nativa explícita.
+   */
+  get restauracionAplicadaHabilitada(): boolean {
+    return Capacitor.getPlatform() === 'web';
+  }
+
+  get restauracionAndroidPendiente(): boolean {
+    return Capacitor.getPlatform() === 'android';
+  }
 
   constructor(private database: DatabaseService) {}
 
@@ -168,7 +177,6 @@ export class BackupService {
     const texto = JSON.stringify(archivo, null, 2);
     const blob = new Blob([texto], { type: 'application/json' });
 
-    // Chrome moderno: el usuario elige la ubicación.
     const picker = (window as Window & {
       showSaveFilePicker?: (options?: unknown) => Promise<{
         createWritable: () => Promise<{
@@ -193,11 +201,9 @@ export class BackupService {
         this.registrarUltimoRespaldo(archivo.createdAt);
         return;
       } catch (error) {
-        // Cancelación del usuario no es un fallo de cifrado.
         if (error instanceof DOMException && error.name === 'AbortError') {
           throw new Error('Exportación cancelada.');
         }
-        // Si el picker falla, intentar descarga clásica.
       }
     }
 
@@ -213,7 +219,6 @@ export class BackupService {
     this.registrarUltimoRespaldo(archivo.createdAt);
 
     if (Capacitor.getPlatform() === 'android') {
-      // Sin @capacitor/filesystem aún no hay ruta de Documents garantizada.
       console.info(
         'Respaldo generado en Android vía descarga webview; ' +
         'pendiente validar almacenamiento nativo.'
@@ -296,13 +301,45 @@ export class BackupService {
   }
 
   /**
-   * No aplica cambios a la BD viva.
-   * Conservado para la siguiente fase con importación atómica + copia previa.
+   * Flujo seguro:
+   * 1) Verifica el payload en BD temporal (sin tocar la viva).
+   * 2) Exporta estado actual cifrado (copia PRE-RESTORE recuperable).
+   * 3) Aplica en la viva dentro de una transacción con rollback.
    */
-  async aplicarRestauracion(_payload: RespaldoPayload): Promise<never> {
-    throw new Error(
-      'La restauración aplicada está deshabilitada en esta versión. ' +
-      'Puedes validar y previsualizar respaldos, pero no reemplazar la base actual.'
+  async aplicarRestauracion(
+    payload: RespaldoPayload,
+    passwordCopiaSeguridad: string
+  ): Promise<{
+    counts: ConteosRespaldo;
+    copiaSeguridadNombre: string;
+  }> {
+    if (!this.restauracionAplicadaHabilitada) {
+      throw new Error(
+        'La restauración aplicada está deshabilitada en esta plataforma. ' +
+        'En Android falta verificación nativa antes de habilitarla.'
+      );
+    }
+    if (passwordCopiaSeguridad.length < 8) {
+      throw new Error(
+        'Define una contraseña (mín. 8) para la copia de seguridad previa a restaurar.'
+      );
+    }
+
+    this.validarPayload(payload);
+
+    // Fallar antes de tocar la viva ni generar PRE-RESTORE innecesario.
+    await this.database.verificarRespaldoEnBaseTemporal(payload);
+
+    const { archivo, nombreArchivo } = await this.crearArchivoCifrado(
+      passwordCopiaSeguridad
     );
+    await this.guardarArchivoRespaldo(archivo, `PRE-RESTORE-${nombreArchivo}`);
+
+    await this.database.restaurarDesdePayload(payload);
+
+    return {
+      counts: payload.counts,
+      copiaSeguridadNombre: `PRE-RESTORE-${nombreArchivo}`
+    };
   }
 }

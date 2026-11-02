@@ -11,6 +11,15 @@ import {
   fechaHoyMexico,
   limitesSemanaDomingoSabado
 } from './diezmo-semana';
+import type { ConteosRespaldo, RespaldoPayload } from './backup.types';
+import { TABLAS_RESPALDO } from './backup.types';
+import {
+  ORDEN_BORRADO_RESTAURACION,
+  ORDEN_INSERCION_RESTAURACION,
+  construirInsertSql,
+  conteosCoinciden,
+  maxIdDeTabla
+} from './backup-restore.util';
 
 export interface Cliente {
   id: number;
@@ -933,5 +942,251 @@ export class DatabaseService {
       primeraVentaISO: primera,
       ventasPorDia: mapa
     });
+  }
+
+  private async contarFilasTabla(
+    conexion: SQLiteDBConnection,
+    tabla: string
+  ): Promise<number> {
+    const r = await conexion.query(`SELECT COUNT(*) AS total FROM ${tabla}`);
+    return Number(r.values?.[0]?.total) || 0;
+  }
+
+  private async obtenerConteosDesdeConexion(
+    conexion: SQLiteDBConnection
+  ): Promise<ConteosRespaldo> {
+    const counts = {} as ConteosRespaldo;
+    for (const tabla of TABLAS_RESPALDO) {
+      counts[tabla] = await this.contarFilasTabla(conexion, tabla);
+    }
+    return counts;
+  }
+
+  private async asegurarEsquemaEnConexion(
+    conexion: SQLiteDBConnection
+  ): Promise<void> {
+    await conexion.execute(`
+      CREATE TABLE IF NOT EXISTS clientes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        telefono TEXT NOT NULL DEFAULT '',
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await conexion.execute(`
+      CREATE TABLE IF NOT EXISTS productos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre TEXT NOT NULL,
+        mililitros INTEGER NOT NULL CHECK (mililitros IN (60, 120)),
+        costo_referencia_centavos INTEGER NOT NULL
+          CHECK (costo_referencia_centavos >= 0),
+        precio_venta_centavos INTEGER NOT NULL
+          CHECK (precio_venta_centavos >= 0),
+        creado_en TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await conexion.execute(`
+      CREATE TABLE IF NOT EXISTS compras (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        producto_id INTEGER NOT NULL,
+        cantidad INTEGER NOT NULL CHECK (cantidad > 0),
+        costo_unitario_centavos INTEGER NOT NULL
+          CHECK (costo_unitario_centavos > 0),
+        fecha TEXT NOT NULL,
+        creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (producto_id) REFERENCES productos(id)
+      );
+    `);
+    await conexion.execute(`
+      CREATE TABLE IF NOT EXISTS abonos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cliente_id INTEGER NOT NULL REFERENCES clientes(id),
+        importe_centavos INTEGER NOT NULL CHECK(importe_centavos > 0),
+        fecha TEXT NOT NULL,
+        concepto TEXT NOT NULL DEFAULT 'Abono',
+        creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await conexion.execute(`
+      CREATE TABLE IF NOT EXISTS operaciones_venta (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cliente_id INTEGER NOT NULL REFERENCES clientes(id),
+        fecha TEXT NOT NULL,
+        abono_id INTEGER REFERENCES abonos(id),
+        creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await conexion.execute(`
+      CREATE TABLE IF NOT EXISTS ventas (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        cliente_id INTEGER NOT NULL REFERENCES clientes(id),
+        producto_id INTEGER NOT NULL REFERENCES productos(id),
+        cantidad INTEGER NOT NULL CHECK(cantidad > 0),
+        precio_unitario_centavos INTEGER NOT NULL CHECK(precio_unitario_centavos > 0),
+        fecha TEXT NOT NULL,
+        creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        operacion_id INTEGER REFERENCES operaciones_venta(id)
+      );
+    `);
+    await conexion.execute(`
+      CREATE TABLE IF NOT EXISTS venta_consumos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        venta_id INTEGER NOT NULL REFERENCES ventas(id),
+        compra_id INTEGER NOT NULL REFERENCES compras(id),
+        cantidad INTEGER NOT NULL CHECK(cantidad > 0),
+        costo_unitario_centavos INTEGER NOT NULL CHECK(costo_unitario_centavos > 0),
+        UNIQUE(venta_id, compra_id)
+      );
+    `);
+
+    const info = await conexion.query('PRAGMA table_info(ventas)');
+    const columnas = (info.values ?? []).map(
+      (columna: { name: string }) => columna.name
+    );
+    if (!columnas.includes('operacion_id')) {
+      await conexion.execute(`
+        ALTER TABLE ventas
+        ADD COLUMN operacion_id INTEGER REFERENCES operaciones_venta(id)
+      `);
+    }
+  }
+
+  private async vaciarTablasNegocio(
+    conexion: SQLiteDBConnection,
+    dentroDeTransaccion: boolean
+  ): Promise<void> {
+    for (const tabla of ORDEN_BORRADO_RESTAURACION) {
+      await conexion.run(`DELETE FROM ${tabla}`, [], !dentroDeTransaccion);
+    }
+  }
+
+  private async insertarPayloadEnConexion(
+    conexion: SQLiteDBConnection,
+    payload: RespaldoPayload,
+    dentroDeTransaccion: boolean
+  ): Promise<void> {
+    for (const tabla of ORDEN_INSERCION_RESTAURACION) {
+      const filas = payload.tables[tabla];
+      for (const fila of filas) {
+        const { sql, valores } = construirInsertSql(tabla, fila);
+        await conexion.run(sql, valores, !dentroDeTransaccion);
+      }
+      const maxId = maxIdDeTabla(filas);
+      if (maxId > 0) {
+        try {
+          await conexion.run(
+            `DELETE FROM sqlite_sequence WHERE name = ?`,
+            [tabla],
+            !dentroDeTransaccion
+          );
+          await conexion.run(
+            `INSERT INTO sqlite_sequence(name, seq) VALUES (?, ?)`,
+            [tabla, maxId],
+            !dentroDeTransaccion
+          );
+        } catch {
+          // sqlite_sequence puede no existir aún en algunos motores web.
+        }
+      }
+    }
+  }
+
+  private async validarIntegridadPostCarga(
+    conexion: SQLiteDBConnection,
+    esperado: ConteosRespaldo
+  ): Promise<void> {
+    const obtenido = await this.obtenerConteosDesdeConexion(conexion);
+    const desfases = conteosCoinciden(esperado, obtenido);
+    if (desfases.length) {
+      throw new Error(
+        `La verificación de restauración falló: ${desfases.join('; ')}`
+      );
+    }
+
+    const huerfanas = await conexion.query(`
+      SELECT COUNT(*) AS total FROM ventas WHERE operacion_id IS NULL
+    `);
+    if ((Number(huerfanas.values?.[0]?.total) || 0) > 0) {
+      throw new Error('Hay ventas sin operación tras la restauración.');
+    }
+
+    const consumosRotos = await conexion.query(`
+      SELECT COUNT(*) AS total
+      FROM venta_consumos vc
+      LEFT JOIN ventas v ON v.id = vc.venta_id
+      LEFT JOIN compras c ON c.id = vc.compra_id
+      WHERE v.id IS NULL OR c.id IS NULL
+    `);
+    if ((Number(consumosRotos.values?.[0]?.total) || 0) > 0) {
+      throw new Error('Consumos FIFO inconsistentes tras la restauración.');
+    }
+  }
+
+  /**
+   * Carga el payload en una BD temporal, valida y la elimina.
+   * No modifica la base viva.
+   */
+  async verificarRespaldoEnBaseTemporal(
+    payload: RespaldoPayload
+  ): Promise<{ counts: ConteosRespaldo }> {
+    await this.iniciar();
+    const nombreTmp = `perfumescontrol_restore_tmp_${Date.now()}`;
+    let abierta = false;
+
+    try {
+      const conexionTmp = await this.sqlite.createConnection(
+        nombreTmp, false, 'no-encryption', 1, false
+      );
+      await conexionTmp.open();
+      abierta = true;
+      await this.asegurarEsquemaEnConexion(conexionTmp);
+      await this.vaciarTablasNegocio(conexionTmp, false);
+      await this.insertarPayloadEnConexion(conexionTmp, payload, false);
+      await this.validarIntegridadPostCarga(conexionTmp, payload.counts);
+      const counts = await this.obtenerConteosDesdeConexion(conexionTmp);
+      await conexionTmp.close();
+      abierta = false;
+      await this.sqlite.closeConnection(nombreTmp, false);
+      try {
+        await CapacitorSQLite.deleteDatabase({ database: nombreTmp });
+      } catch {
+        // En algunos entornos web el borrado físico puede fallar; ya cerramos.
+      }
+      return { counts };
+    } catch (error) {
+      try {
+        if (abierta) {
+          const conn = await this.sqlite.retrieveConnection(nombreTmp, false);
+          await conn.close();
+        }
+      } catch { /* ignore */ }
+      try {
+        await this.sqlite.closeConnection(nombreTmp, false);
+      } catch { /* ignore */ }
+      try {
+        await CapacitorSQLite.deleteDatabase({ database: nombreTmp });
+      } catch { /* ignore */ }
+      throw error;
+    }
+  }
+
+  /**
+   * Restaura el payload en la BD viva dentro de UNA transacción.
+   * Si falla, hace rollback y conserva los datos anteriores.
+   * Debe llamarse solo después de verificarEnBaseTemporal + confirmación.
+   */
+  async restaurarDesdePayload(payload: RespaldoPayload): Promise<void> {
+    await this.iniciar();
+    await this.conexion!.beginTransaction();
+    try {
+      await this.vaciarTablasNegocio(this.conexion!, true);
+      await this.insertarPayloadEnConexion(this.conexion!, payload, true);
+      await this.validarIntegridadPostCarga(this.conexion!, payload.counts);
+      await this.conexion!.commitTransaction();
+    } catch (error) {
+      await this.conexion!.rollbackTransaction();
+      throw error;
+    }
+    await this.persistirWeb();
   }
 }

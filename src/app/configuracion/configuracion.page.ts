@@ -11,7 +11,7 @@ import {
   IonBackButton
 } from '@ionic/angular';
 import { BackupService } from '../services/backup.service';
-import type { VistaPreviaRespaldo } from '../services/backup.types';
+import type { RespaldoPayload, VistaPreviaRespaldo } from '../services/backup.types';
 
 @Component({
   selector: 'app-configuracion',
@@ -34,9 +34,12 @@ export class ConfiguracionPage implements OnInit {
   passwordExportar = '';
   passwordConfirmar = '';
   passwordRestaurar = '';
+  passwordCopiaPrevia = '';
 
   archivoSeleccionado: File | null = null;
   preview: VistaPreviaRespaldo | null = null;
+  payloadValidado: RespaldoPayload | null = null;
+  confirmarReemplazo = false;
 
   ultimoRespaldoIso: string | null = null;
 
@@ -46,6 +49,8 @@ export class ConfiguracionPage implements OnInit {
 
   readonly restauracionAplicadaHabilitada =
     this.backup.restauracionAplicadaHabilitada;
+  readonly restauracionAndroidPendiente =
+    this.backup.restauracionAndroidPendiente;
 
   constructor(
     private backup: BackupService,
@@ -112,6 +117,8 @@ export class ConfiguracionPage implements OnInit {
     const file = input.files?.[0] ?? null;
     this.archivoSeleccionado = file;
     this.preview = null;
+    this.payloadValidado = null;
+    this.confirmarReemplazo = false;
     this.error = '';
     this.mensaje = '';
   }
@@ -121,6 +128,8 @@ export class ConfiguracionPage implements OnInit {
     this.error = '';
     this.mensaje = '';
     this.preview = null;
+    this.payloadValidado = null;
+    this.confirmarReemplazo = false;
 
     if (!this.archivoSeleccionado) {
       this.error = 'Selecciona un archivo .pcbak primero.';
@@ -134,17 +143,21 @@ export class ConfiguracionPage implements OnInit {
     this.ocupado = true;
     this.cdr.detectChanges();
     try {
-      const { preview } = await this.backup.abrirYValidarRespaldo(
+      const { payload, preview } = await this.backup.abrirYValidarRespaldo(
         this.archivoSeleccionado,
         this.passwordRestaurar
       );
       this.preview = preview;
+      this.payloadValidado = payload;
       this.mensaje =
-        'Respaldo válido. Vista previa lista. ' +
-        'La restauración que reemplaza datos aún no está habilitada.';
+        'Respaldo válido. Revisa la vista previa. ' +
+        (this.restauracionAplicadaHabilitada
+          ? 'Puedes restaurar tras confirmar el reemplazo.'
+          : 'La restauración aplicada sigue deshabilitada en esta plataforma.');
     } catch (e) {
       console.error('Error al validar respaldo:', e);
       this.preview = null;
+      this.payloadValidado = null;
       this.error = e instanceof Error ? e.message : 'No se pudo validar el respaldo.';
     } finally {
       this.ocupado = false;
@@ -153,9 +166,56 @@ export class ConfiguracionPage implements OnInit {
   }
 
   async intentarRestaurar(): Promise<void> {
-    this.error =
-      'La restauración aplicada está deshabilitada para proteger tus datos. ' +
-      'Puedes exportar y validar respaldos; la importación segura llegará en una fase posterior.';
+    if (this.ocupado) return;
+    this.error = '';
     this.mensaje = '';
+
+    if (!this.restauracionAplicadaHabilitada) {
+      this.error =
+        this.restauracionAndroidPendiente
+          ? 'Restauración deshabilitada en Android hasta verificación nativa. Usa Chrome/web para pruebas.'
+          : 'La restauración aplicada está deshabilitada en esta plataforma.';
+      return;
+    }
+    if (!this.payloadValidado) {
+      this.error = 'Primero valida el respaldo para obtener la vista previa.';
+      return;
+    }
+    if (!this.confirmarReemplazo) {
+      this.error = 'Marca la casilla de confirmación para reemplazar los datos actuales.';
+      return;
+    }
+    if (this.passwordCopiaPrevia.length < 8) {
+      this.error =
+        'Ingresa una contraseña (≥8) para la copia PRE-RESTORE del estado actual.';
+      return;
+    }
+
+    this.ocupado = true;
+    this.cdr.detectChanges();
+    try {
+      const resultado = await this.backup.aplicarRestauracion(
+        this.payloadValidado,
+        this.passwordCopiaPrevia
+      );
+      this.ultimoRespaldoIso = this.backup.obtenerFechaUltimoRespaldo();
+      this.passwordRestaurar = '';
+      this.passwordCopiaPrevia = '';
+      this.confirmarReemplazo = false;
+      this.mensaje =
+        `Restauración completada. ` +
+        `Copia de seguridad previa: ${resultado.copiaSeguridadNombre}. ` +
+        `Clientes ${resultado.counts.clientes}, ventas ${resultado.counts.ventas}, ` +
+        `abonos ${resultado.counts.abonos}. ` +
+        'Recarga Inicio para ver saldos, inventario y diezmo.';
+    } catch (e) {
+      console.error('Error al restaurar:', e);
+      this.error =
+        (e instanceof Error ? e.message : 'No se pudo restaurar.') +
+        ' Los datos anteriores debieron conservarse por rollback.';
+    } finally {
+      this.ocupado = false;
+      this.cdr.detectChanges();
+    }
   }
 }

@@ -61,10 +61,15 @@
 
     <section class="bloque">
       <h2>Restaurar respaldo</h2>
-      <p class="ayuda">
-        Puedes seleccionar un archivo, ingresar la contraseña y ver una vista previa.
-        El reemplazo de la base de datos actual está deshabilitado hasta completar
-        un procedimiento de importación atómica con copia de seguridad previa.
+      <p class="ayuda" *ngIf="restauracionAplicadaHabilitada">
+        Flujo seguro: valida el archivo → genera copia PRE-RESTORE del estado actual →
+        verifica en base temporal → aplica en una sola transacción (rollback si falla).
+      </p>
+      <p class="ayuda" *ngIf="!restauracionAplicadaHabilitada">
+        La restauración aplicada está deshabilitada en esta plataforma.
+        <span *ngIf="restauracionAndroidPendiente">
+          En Android falta verificación nativa antes de usarla con datos reales.
+        </span>
       </p>
 
       <label for="archivo-respaldo">Archivo .pcbak</label>
@@ -106,22 +111,40 @@
         </ul>
         <p class="advertencia" *ngFor="let a of p.advertencias">{{ a }}</p>
         <p class="advertencia">
-          Si la restauración estuviera activa, reemplazaría todos los registros actuales.
+          Restaurar reemplazará todos los registros actuales de esta aplicación.
         </p>
+
+        <ng-container *ngIf="restauracionAplicadaHabilitada">
+          <label for="pass-pre">
+            Contraseña para copia PRE-RESTORE (estado actual, mín. 8)
+          </label>
+          <input
+            id="pass-pre"
+            type="password"
+            name="passwordCopiaPrevia"
+            autocomplete="new-password"
+            [(ngModel)]="passwordCopiaPrevia"
+            [disabled]="ocupado" />
+
+          <label class="check">
+            <input
+              type="checkbox"
+              name="confirmarReemplazo"
+              [(ngModel)]="confirmarReemplazo"
+              [disabled]="ocupado" />
+            Entiendo que se reemplazarán los datos actuales tras guardar la copia PRE-RESTORE.
+          </label>
+        </ng-container>
       </div>
 
       <button
         type="button"
         class="peligro"
-        [disabled]="true"
+        [class.peligro-activo]="restauracionAplicadaHabilitada"
+        [disabled]="ocupado || !restauracionAplicadaHabilitada || !payloadValidado"
         (click)="intentarRestaurar()">
-        Restaurar (deshabilitado)
+        {{ restauracionAplicadaHabilitada ? 'Restaurar respaldo' : 'Restaurar (deshabilitado)' }}
       </button>
-      <p class="ayuda" *ngIf="!restauracionAplicadaHabilitada">
-        Motivo: `importFromJson` con `overwrite` puede borrar la BD viva.
-        Primero necesitamos exportar el estado actual, importar en una base temporal,
-        validar relaciones/saldos y solo entonces sustituir de forma atómica.
-      </p>
     </section>
 
     <p class="enlace-inicio">
