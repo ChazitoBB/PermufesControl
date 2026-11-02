@@ -5,6 +5,12 @@ import {
   SQLiteConnection,
   SQLiteDBConnection
 } from '@capacitor-community/sqlite';
+import {
+  calcularDiezmoCentavos,
+  construirHistorialDiezmos,
+  fechaHoyMexico,
+  limitesSemanaDomingoSabado
+} from './diezmo-semana';
 
 export interface Cliente {
   id: number;
@@ -116,6 +122,18 @@ export interface ResumenInicio {
   inventario_unidades: number;
   ganancia_bruta_ventas_centavos: number;
   ganancia_potencial_inventario_centavos: number;
+  diezmo_semana_inicio: string;
+  diezmo_semana_fin: string;
+  ventas_semana_centavos: number;
+  diezmo_semana_centavos: number;
+}
+
+export interface DiezmoSemanaResumen {
+  inicio: string;
+  fin: string;
+  ventas_centavos: number;
+  diezmo_centavos: number;
+  es_actual: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -816,6 +834,8 @@ export class DatabaseService {
       FROM ventas v
     `);
 
+    const diezmo = await this.obtenerDiezmoSemana();
+
     return {
       fecha: dia,
       ventas_hoy_centavos: Number(ventasHoy.values?.[0]?.total) || 0,
@@ -824,7 +844,70 @@ export class DatabaseService {
       inventario_unidades: inventarioUnidades,
       ganancia_bruta_ventas_centavos:
         Number(gananciaBruta.values?.[0]?.total) || 0,
-      ganancia_potencial_inventario_centavos: gananciaPotencial
+      ganancia_potencial_inventario_centavos: gananciaPotencial,
+      diezmo_semana_inicio: diezmo.inicio,
+      diezmo_semana_fin: diezmo.fin,
+      ventas_semana_centavos: diezmo.ventas_centavos,
+      diezmo_semana_centavos: diezmo.diezmo_centavos
     };
+  }
+
+  /**
+   * Diezmo = 10% del bruto de ventas (líneas en `ventas`) en la semana
+   * domingo–sábado America/Mexico_City. No usa abonos ni cobros.
+   */
+  async obtenerDiezmoSemana(
+    fechaReferencia?: string
+  ): Promise<DiezmoSemanaResumen> {
+    await this.iniciar();
+    const referencia = fechaReferencia && /^\d{4}-\d{2}-\d{2}$/.test(fechaReferencia)
+      ? fechaReferencia
+      : fechaHoyMexico();
+    const { inicio, fin } = limitesSemanaDomingoSabado(referencia);
+    const actual = limitesSemanaDomingoSabado(fechaHoyMexico());
+
+    const r = await this.conexion!.query(`
+      SELECT COALESCE(SUM(cantidad * precio_unitario_centavos), 0) AS total
+      FROM ventas
+      WHERE fecha >= ? AND fecha <= ?
+    `, [inicio, fin]);
+
+    const ventas = Number(r.values?.[0]?.total) || 0;
+    return {
+      inicio,
+      fin,
+      ventas_centavos: ventas,
+      diezmo_centavos: calcularDiezmoCentavos(ventas),
+      es_actual: inicio === actual.inicio
+    };
+  }
+
+  /** Historial recalculable desde ventas; sin tabla dedicada. */
+  async listarHistorialDiezmos(): Promise<DiezmoSemanaResumen[]> {
+    await this.iniciar();
+    const hoy = fechaHoyMexico();
+
+    const extrema = await this.conexion!.query(`
+      SELECT MIN(fecha) AS primera FROM ventas
+    `);
+    const primera = (extrema.values?.[0]?.primera as string | null) ?? null;
+
+    const porDia = await this.conexion!.query(`
+      SELECT fecha,
+        COALESCE(SUM(cantidad * precio_unitario_centavos), 0) AS total
+      FROM ventas
+      GROUP BY fecha
+    `);
+
+    const mapa = new Map<string, number>();
+    for (const fila of (porDia.values ?? [])) {
+      mapa.set(String(fila.fecha), Number(fila.total) || 0);
+    }
+
+    return construirHistorialDiezmos({
+      hoyISO: hoy,
+      primeraVentaISO: primera,
+      ventasPorDia: mapa
+    });
   }
 }

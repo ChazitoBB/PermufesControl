@@ -39,6 +39,16 @@
         </div>
       </div>
 
+      <a class="tarjeta tarjeta-diezmo" routerLink="/diezmo-historial">
+        <span>Diezmo de esta semana</span>
+        <strong>{{ formatoMXN(r.diezmo_semana_centavos) }}</strong>
+        <small>
+          Base: {{ formatoMXN(r.ventas_semana_centavos) }}
+          · {{ r.diezmo_semana_inicio }} → {{ r.diezmo_semana_fin }}
+        </small>
+        <em>Ver historial de diezmos</em>
+      </a>
+
       <div class="seccion">
         <h2>Resumen de rentabilidad</h2>
         <p>
@@ -52,6 +62,7 @@
         <p class="nota">
           Las tarjetas superiores usan el día {{ r.fecha }}.
           La ganancia bruta acumula todas las ventas con costos FIFO.
+          El diezmo es el 10% del bruto de ventas de la semana (domingo a sábado, Ciudad de México).
         </p>
       </div>
     </ng-container>
